@@ -1013,10 +1013,14 @@ public class MineverseChat extends JavaPlugin implements PluginMessageListener {
 					}
 					if(p.getIgnores().contains(sender)) {
 						out.writeUTF("Message");
-						out.writeUTF("Ignore");
+						out.writeUTF("Echo");
 						out.writeUTF(server);
 						out.writeUTF(receiver);
+						out.writeUTF(p.getUUID().toString());
 						out.writeUTF(sender.toString());
+						out.writeUTF(sName);
+						out.writeUTF(Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(p.getPlayer(), echo.replaceAll("receiver_", ""))) + msg);
+						out.writeUTF("VentureChat:NoSpy");
 						sendPluginMessage(stream);
 						return;
 					}

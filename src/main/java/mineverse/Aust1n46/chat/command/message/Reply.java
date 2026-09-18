@@ -44,11 +44,8 @@ public class Reply extends Command {
 					mcp.getPlayer().sendMessage(LocalizedMessage.NO_PLAYER_TO_REPLY_TO.toString());
 					return true;
 				}
-				if (player.getIgnores().contains(mcp.getUUID())) {
-					mcp.getPlayer().sendMessage(LocalizedMessage.IGNORING_MESSAGE.toString().replace("{player}", player.getName()));
-					return true;
-				}
-				if (!player.getMessageToggle()) {
+				boolean ignored = player.getIgnores().contains(mcp.getUUID());
+				if (!ignored && !player.getMessageToggle()) {
 					mcp.getPlayer().sendMessage(LocalizedMessage.BLOCKING_MESSAGE.toString().replace("{player}", player.getName()));
 					return true;
 				}
@@ -80,6 +77,11 @@ public class Reply extends Command {
 					send = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(player.getPlayer(), send.replaceAll("receiver_", ""))) + msg;
 					echo = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(player.getPlayer(), echo.replaceAll("receiver_", ""))) + msg;
 					spy = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(player.getPlayer(), spy.replaceAll("receiver_", ""))) + msg;
+
+					if (ignored) {
+						mcp.getPlayer().sendMessage(echo);
+						return true;
+					}
 
 					if (!mcp.getPlayer().hasPermission("venturechat.spy.override")) {
 						for (MineverseChatPlayer p : MineverseChatAPI.getOnlineMineverseChatPlayers()) {
