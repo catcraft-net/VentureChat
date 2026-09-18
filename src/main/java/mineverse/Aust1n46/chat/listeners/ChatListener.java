@@ -93,13 +93,8 @@ public class ChatListener implements Listener {
 				mcp.setConversation(null);
 			}
 			else {
-				if(tp.getIgnores().contains(mcp.getUUID())) {
-					mcp.getPlayer().sendMessage(LocalizedMessage.IGNORING_MESSAGE.toString()
-							.replace("{player}", tp.getName()));
-					event.setCancelled(true);
-					return;
-				}
-				if(!tp.getMessageToggle()) {
+				boolean ignored = tp.getIgnores().contains(mcp.getUUID());
+				if(!ignored && !tp.getMessageToggle()) {
 					mcp.getPlayer().sendMessage(LocalizedMessage.BLOCKING_MESSAGE.toString()
 							.replace("{player}", tp.getName()));
 					event.setCancelled(true);
@@ -130,7 +125,13 @@ public class ChatListener implements Listener {
 				send = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(tp.getPlayer(), send.replaceAll("receiver_", ""))) + filtered;
 				echo = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(tp.getPlayer(), echo.replaceAll("receiver_", ""))) + filtered;
 				spy = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(tp.getPlayer(), spy.replaceAll("receiver_", ""))) + filtered;
-				
+
+				if(ignored) {
+					mcp.setReplyPlayer(tp.getUUID());
+					mcp.getPlayer().sendMessage(echo);
+					return;
+				}
+
 				if(!mcp.getPlayer().hasPermission("venturechat.spy.override")) {
 					for(MineverseChatPlayer p : MineverseChatAPI.getOnlineMineverseChatPlayers()) {
 						if(p.getName().equals(mcp.getName()) || p.getName().equals(tp.getName())) {

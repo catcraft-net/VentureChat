@@ -52,11 +52,8 @@ public class Message extends Command {
 			mcp.getPlayer().sendMessage(LocalizedMessage.PLAYER_OFFLINE.toString().replace("{args}", args[0]));
 			return true;
 		}
-		if (player.getIgnores().contains(mcp.getUUID())) {
-			mcp.getPlayer().sendMessage(LocalizedMessage.IGNORING_MESSAGE.toString().replace("{player}", player.getName()));
-			return true;
-		}
-		if (!player.getMessageToggle()) {
+		boolean ignored = player.getIgnores().contains(mcp.getUUID());
+		if (!ignored && !player.getMessageToggle()) {
 			mcp.getPlayer().sendMessage(LocalizedMessage.BLOCKING_MESSAGE.toString().replace("{player}", player.getName()));
 			return true;
 		}
@@ -91,6 +88,12 @@ public class Message extends Command {
 				echo = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(player.getPlayer(), echo.replaceAll("receiver_", ""))) + msg;
 				spy = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(player.getPlayer(), spy.replaceAll("receiver_", ""))) + msg;
 
+				if (ignored) {
+					mcp.setReplyPlayer(player.getUUID());
+					mcp.getPlayer().sendMessage(echo);
+					return true;
+				}
+
 				player.setReplyPlayer(mcp.getUUID());
 				mcp.setReplyPlayer(player.getUUID());
 				player.getPlayer().sendMessage(send);
@@ -114,7 +117,7 @@ public class Message extends Command {
 			if (args[0].length() > 0) {
 				if (!mcp.hasConversation() || (mcp.hasConversation() && !mcp.getConversation().toString().equals(player.getUUID().toString()))) {
 					mcp.setConversation(player.getUUID());
-					if (!mcp.getPlayer().hasPermission("venturechat.spy.override")) {
+					if (!ignored && !mcp.getPlayer().hasPermission("venturechat.spy.override")) {
 						for (MineverseChatPlayer sp : MineverseChatAPI.getOnlineMineverseChatPlayers()) {
 							if (sp.getName().equals(mcp.getName())) {
 								continue;
@@ -128,7 +131,7 @@ public class Message extends Command {
 					mcp.getPlayer().sendMessage(LocalizedMessage.ENTER_PRIVATE_CONVERSATION.toString().replace("{player_receiver}", player.getName()));
 				} else {
 					mcp.setConversation(null);
-					if (!mcp.getPlayer().hasPermission("venturechat.spy.override")) {
+					if (!ignored && !mcp.getPlayer().hasPermission("venturechat.spy.override")) {
 						for (MineverseChatPlayer sp : MineverseChatAPI.getOnlineMineverseChatPlayers()) {
 							if (sp.getName().equals(mcp.getName())) {
 								continue;
