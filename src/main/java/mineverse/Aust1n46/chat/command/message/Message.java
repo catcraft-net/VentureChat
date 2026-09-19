@@ -38,6 +38,13 @@ public class Message extends Command {
 			return true;
 		}
 
+		// /pm toggle flips the sender's own private message setting instead of
+		// messaging a player, matching the other message flags in this plugin.
+		if (args.length == 1 && args[0].equalsIgnoreCase(MessageToggle.TOGGLE_ARGUMENT)) {
+			MessageToggle.toggleMessages(mcp);
+			return true;
+		}
+
 		if (plugin.getConfig().getBoolean("bungeecordmessaging", true)) {
 			sendBungeeCordMessage(mcp, command, args);
 			return true;
@@ -151,10 +158,16 @@ public class Message extends Command {
 
 	@Override
 	public List<String> tabComplete(CommandSender sender, String label, String[] args) {
+		List<String> completions = new ArrayList<>();
+		if (args.length == 1 && sender.hasPermission(MessageToggle.PERMISSION)) {
+			StringUtil.copyPartialMatches(args[0], Collections.singletonList(MessageToggle.TOGGLE_ARGUMENT), completions);
+		}
 		if (plugin.getConfig().getBoolean("bungeecordmessaging", true)) {
-			List<String> completions = new ArrayList<>();
 			StringUtil.copyPartialMatches(args[args.length - 1], MineverseChatAPI.getNetworkPlayerNames(), completions);
 			Collections.sort(completions);
+			return completions;
+		}
+		if (!completions.isEmpty()) {
 			return completions;
 		}
 		return super.tabComplete(sender, label, args);

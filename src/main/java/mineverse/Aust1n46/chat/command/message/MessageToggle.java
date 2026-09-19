@@ -11,6 +11,17 @@ import mineverse.Aust1n46.chat.api.MineverseChatPlayer;
 import mineverse.Aust1n46.chat.localization.LocalizedMessage;
 
 public class MessageToggle extends Command {
+	/**
+	 * Player permission required to flip the private message setting.
+	 */
+	public static final String PERMISSION = "venturechat.messagetoggle";
+
+	/**
+	 * Argument accepted by the message command to flip the private message setting,
+	 * for example {@code /pm toggle}.
+	 */
+	public static final String TOGGLE_ARGUMENT = "toggle";
+
 	public MessageToggle() {
 		super("messagetoggle");
 	}
@@ -21,20 +32,24 @@ public class MessageToggle extends Command {
 			Bukkit.getServer().getConsoleSender().sendMessage(LocalizedMessage.COMMAND_MUST_BE_RUN_BY_PLAYER.toString());
 			return true;
 		}
-		MineverseChatPlayer mcp = MineverseChatAPI.getOnlineMineverseChatPlayer((Player) sender);
-		if (mcp.getPlayer().hasPermission("venturechat.messagetoggle")) {
-			if (!mcp.getMessageToggle()) {
-				mcp.setMessageToggle(true);
-				mcp.getPlayer().sendMessage(LocalizedMessage.MESSAGE_TOGGLE_ON.toString());
-				MineverseChat.synchronize(mcp, true);
-				return true;
-			}
-			mcp.setMessageToggle(false);
-			mcp.getPlayer().sendMessage(LocalizedMessage.MESSAGE_TOGGLE_OFF.toString());
-			MineverseChat.synchronize(mcp, true);
-			return true;
-		}
-		mcp.getPlayer().sendMessage(LocalizedMessage.COMMAND_NO_PERMISSION.toString());
+		toggleMessages(MineverseChatAPI.getOnlineMineverseChatPlayer((Player) sender));
 		return true;
+	}
+
+	/**
+	 * Flips the supplied player's private message setting, tells them the new state
+	 * and persists the change for the rest of the network.
+	 *
+	 * @param mcp
+	 *            the player whose private message setting should be flipped
+	 */
+	public static void toggleMessages(MineverseChatPlayer mcp) {
+		if (!mcp.getPlayer().hasPermission(PERMISSION)) {
+			mcp.getPlayer().sendMessage(LocalizedMessage.COMMAND_NO_PERMISSION.toString());
+			return;
+		}
+		mcp.setMessageToggle(!mcp.getMessageToggle());
+		mcp.getPlayer().sendMessage((mcp.getMessageToggle() ? LocalizedMessage.MESSAGE_TOGGLE_ON : LocalizedMessage.MESSAGE_TOGGLE_OFF).toString());
+		MineverseChat.synchronize(mcp, true);
 	}
 }
