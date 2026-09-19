@@ -42,7 +42,6 @@ public class ChatChannel {
 	private String alias;
 	private double distance;
 	private boolean filter;
-	private boolean bungee;
 	private String format;
 	private int cooldown;
 	private String prefix;
@@ -64,7 +63,6 @@ public class ChatChannel {
 			String speakPermission = cs.getString(key + ".speak_permissions", "None");
 			boolean mutable = cs.getBoolean(key + ".mutable", false);
 			boolean filter = cs.getBoolean(key + ".filter", true);
-			boolean bungee = cs.getBoolean(key + ".bungeecord", false);
 			String format = cs.getString(key + ".format", "Default");
 			boolean defaultChannel = cs.getBoolean(key + ".default", false);
 			String alias = cs.getString(key + ".alias", "None");
@@ -73,7 +71,7 @@ public class ChatChannel {
 			boolean autojoin = cs.getBoolean(key + ".autojoin", false);
 			String prefix = cs.getString(key + ".channel_prefix");
 			ChatChannel chatChannel = new ChatChannel(name, color, chatColor, permission, speakPermission, mutable,
-					filter, defaultChannel, alias, distance, autojoin, bungee, cooldown, prefix, format);
+					filter, defaultChannel, alias, distance, autojoin, false, cooldown, prefix, format);
 			channels[counter++] = chatChannel;
 			chatChannels.put(name.toLowerCase(), chatChannel);
 			chatChannels.put(alias.toLowerCase(), chatChannel);
@@ -199,7 +197,6 @@ public class ChatChannel {
 		this.alias = alias;
 		this.distance = distance;
 		this.autojoin = autojoin;
-		this.bungee = bungee;
 		this.cooldown = cooldown;
 		this.format = format;
 		this.prefix = prefix;
@@ -238,7 +235,6 @@ public class ChatChannel {
 		this.alias = alias;
 		this.distance = distance;
 		this.autojoin = autojoin;
-		this.bungee = bungee;
 		this.cooldown = cooldown;
 		this.format = format;
 	}
@@ -284,8 +280,9 @@ public class ChatChannel {
 	 * @return {@link Boolean#TRUE} if the chat channel is BungeeCord enabled,
 	 *         {@link Boolean#FALSE} otherwise.
 	 */
+	@Deprecated
 	public Boolean getBungee() {
-		return Boolean.valueOf(bungee);
+		return Boolean.FALSE;
 	}
 
 	/**

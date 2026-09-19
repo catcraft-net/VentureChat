@@ -1,11 +1,13 @@
 package mineverse.Aust1n46.chat.listeners;
 
 import java.io.File;
+import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -86,7 +88,20 @@ public class LoginListenerTest {
 	@Test
 	public void testPlayerQuit() {
 		testLoginListener.onPlayerQuit(mockPlayerQuitEvent);
+		mockedPlayerData.verify(() -> PlayerData.savePlayerData(mockMCP), Mockito.times(1));
 		Mockito.verify(mockMCP, Mockito.times(1)).clearMessages();
 		Mockito.verify(mockMCP, Mockito.times(1)).setOnline(false);
+	}
+
+	@Test
+	public void testPreLoginLoadsOnlyJoiningPlayer() throws Exception {
+		AsyncPlayerPreLoginEvent event = Mockito.mock(AsyncPlayerPreLoginEvent.class);
+		UUID uuid = UUID.randomUUID();
+		Mockito.when(event.getUniqueId()).thenReturn(uuid);
+		Mockito.when(event.getName()).thenReturn("JoiningPlayer");
+
+		testLoginListener.onAsyncPlayerPreLogin(event);
+
+		mockedPlayerData.verify(() -> PlayerData.prepareLogin(uuid, "JoiningPlayer"), Mockito.times(1));
 	}
 }

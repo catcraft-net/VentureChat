@@ -20,7 +20,6 @@ import org.json.simple.parser.JSONParser;
 import com.google.common.collect.ImmutableList;
 
 import mineverse.Aust1n46.chat.MineverseChat;
-import mineverse.Aust1n46.chat.proxy.VentureChatProxySource;
 
 public class UUIDFetcher implements Callable<Map<String, UUID>> {
 	private static final double PROFILES_PER_REQUEST = 100;
@@ -117,33 +116,14 @@ public class UUIDFetcher implements Callable<Map<String, UUID>> {
     	return (uuidIsOffline(uuid) && !MineverseChat.getInstance().getConfig().getBoolean("offline_server_acknowledgement", false));
     }
     
-    public static boolean shouldSkipOfflineUUIDProxy(UUID uuid, VentureChatProxySource source) {
-    	return (uuidIsOffline(uuid) && !source.isOfflineServerAcknowledgementSet());
-    }
-    
     public static void checkOfflineUUIDWarning(UUID uuid) {
 		if(shouldSkipOfflineUUID(uuid)) {
     		Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - Detected Offline UUID!"));
-    		Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - If you are using BungeeCord, make sure you have properly setup IP Forwarding."));
-    		Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - https://www.spigotmc.org/wiki/bungeecord-ip-forwarding/"));
-    		Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - You can access this wiki page from the log file or just Google it."));
-    		Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - If you're running a \"cracked\" server, player data might not be stored properly, and thus, you are on your own."));
+				Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - If you're running a \"cracked\" server, player data might not be stored properly, and thus, you are on your own."));
     		Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - If you run your server in offline mode, you will probably lose your player data when switching to online mode!"));
     		Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - No player data will be saved in offline mode unless you set the \"cracked\" server acknowledgement in the config!"));
     		return;
 		}
     }
     
-    public static void checkOfflineUUIDWarningProxy(UUID uuid, VentureChatProxySource source) {
-		if(shouldSkipOfflineUUIDProxy(uuid, source)) {
-			source.sendConsoleMessage("&8[&eVentureChat&8]&c - Detected Offline UUID!");
-			source.sendConsoleMessage("&8[&eVentureChat&8]&c - If you are using BungeeCord, make sure you have properly setup IP Forwarding.");
-			source.sendConsoleMessage("&8[&eVentureChat&8]&c - https://www.spigotmc.org/wiki/bungeecord-ip-forwarding/");
-			source.sendConsoleMessage("&8[&eVentureChat&8]&c - You can access this wiki page from the log file or just Google it.");
-			source.sendConsoleMessage("&8[&eVentureChat&8]&c - If you're running a \"cracked\" server, player data might not be stored properly, and thus, you are on your own.");
-			source.sendConsoleMessage("&8[&eVentureChat&8]&c - If you run your server in offline mode, you will probably lose your player data when switching to online mode!");
-			source.sendConsoleMessage("&8[&eVentureChat&8]&c - No player data will be saved in offline mode unless you set the \"cracked\" server acknowledgement in the config!");	
-    		return;
-		}
-    }
 }

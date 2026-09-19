@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import mineverse.Aust1n46.chat.ChatMessage;
 import mineverse.Aust1n46.chat.channel.ChatChannel;
 import mineverse.Aust1n46.chat.command.mute.MuteContainer;
+import mineverse.Aust1n46.chat.database.PlayerData;
 import mineverse.Aust1n46.chat.json.JsonFormat;
 
 /**
@@ -52,14 +53,19 @@ public class MineverseChatPlayer {
 	private int editHash;
 	private boolean rangedSpy;
 	private boolean messageToggle;
-	private boolean bungeeToggle;
+	private long storageRevision;
 	
 	@Deprecated
 	public MineverseChatPlayer(UUID uuid, String name, ChatChannel currentChannel, Set<UUID> ignores, Set<String> listening, HashMap<String, MuteContainer> mutes, Set<String> blockedCommands, boolean host, UUID party, boolean filter, boolean notifications, String nickname, String jsonFormat, boolean spy, boolean commandSpy, boolean rangedSpy, boolean messageToggle, boolean bungeeToggle) {
-		this(uuid, name, currentChannel, ignores, listening, mutes, blockedCommands, host, party, filter, notifications, jsonFormat, spy, commandSpy, rangedSpy, messageToggle, bungeeToggle);
+		this(uuid, name, currentChannel, ignores, listening, mutes, blockedCommands, host, party, filter, notifications, jsonFormat, spy, commandSpy, rangedSpy, messageToggle);
 	}
 	
+	@Deprecated
 	public MineverseChatPlayer(UUID uuid, String name, ChatChannel currentChannel, Set<UUID> ignores, Set<String> listening, HashMap<String, MuteContainer> mutes, Set<String> blockedCommands, boolean host, UUID party, boolean filter, boolean notifications, String jsonFormat, boolean spy, boolean commandSpy, boolean rangedSpy, boolean messageToggle, boolean bungeeToggle) {
+		this(uuid, name, currentChannel, ignores, listening, mutes, blockedCommands, host, party, filter, notifications, jsonFormat, spy, commandSpy, rangedSpy, messageToggle);
+	}
+
+	public MineverseChatPlayer(UUID uuid, String name, ChatChannel currentChannel, Set<UUID> ignores, Set<String> listening, HashMap<String, MuteContainer> mutes, Set<String> blockedCommands, boolean host, UUID party, boolean filter, boolean notifications, String jsonFormat, boolean spy, boolean commandSpy, boolean rangedSpy, boolean messageToggle) {
 		this.uuid = uuid;
 		this.name = name;
 		this.currentChannel = currentChannel;
@@ -88,7 +94,7 @@ public class MineverseChatPlayer {
 		this.cooldowns = new HashMap<ChatChannel, Long>();
 		this.spam = new HashMap<ChatChannel, List<Long>>();
 		this.messageToggle = messageToggle;
-		this.bungeeToggle = bungeeToggle;
+		this.storageRevision = 0L;
 	}
 	
 	public MineverseChatPlayer(UUID uuid, String name) {
@@ -121,7 +127,7 @@ public class MineverseChatPlayer {
 		this.cooldowns = new HashMap<ChatChannel, Long>();
 		this.spam = new HashMap<ChatChannel, List<Long>>();
 		this.messageToggle = true;
-		this.bungeeToggle = true;
+		this.storageRevision = 0L;
 	}
 	
 	@Deprecated
@@ -137,12 +143,14 @@ public class MineverseChatPlayer {
 		return false;
 	}
 	
+	@Deprecated
 	public boolean getBungeeToggle() {
-		return this.bungeeToggle;
+		return true;
 	}
 	
+	@Deprecated
 	public void setBungeeToggle(boolean bungeeToggle) {
-		this.bungeeToggle = bungeeToggle;
+		// Retained as a no-op for binary/source compatibility with older integrations.
 	}
 	
 	public boolean getMessageToggle() {
@@ -150,7 +158,10 @@ public class MineverseChatPlayer {
 	}
 	
 	public void setMessageToggle(boolean messageToggle) {
-		this.messageToggle = messageToggle;
+		if (this.messageToggle != messageToggle) {
+			this.messageToggle = messageToggle;
+			markDirty();
+		}
 	}
 	
 	public boolean getRangedSpy() {
@@ -164,7 +175,10 @@ public class MineverseChatPlayer {
 	}
 	
 	public void setRangedSpy(boolean rangedSpy) {
-		this.rangedSpy = rangedSpy;
+		if (this.rangedSpy != rangedSpy) {
+			this.rangedSpy = rangedSpy;
+			markDirty();
+		}
 	}
 	
 	public int getEditHash() {
@@ -192,7 +206,10 @@ public class MineverseChatPlayer {
 	}
 	
 	public void setName(String name) {
-		this.name = name;
+		if (!this.name.equals(name)) {
+			this.name = name;
+			markDirty();
+		}
 	}
 
 	public ChatChannel getCurrentChannel() {
@@ -201,7 +218,10 @@ public class MineverseChatPlayer {
 
 	public boolean setCurrentChannel(ChatChannel channel) {
 		if(channel != null) {
-			this.currentChannel = channel;
+			if (!channel.equals(this.currentChannel)) {
+				this.currentChannel = channel;
+				markDirty();
+			}
 			return true;
 		}
 		return false;
@@ -212,11 +232,11 @@ public class MineverseChatPlayer {
 	}
 
 	public void addIgnore(UUID ignore) {
-		this.ignores.add(ignore);
+		if (this.ignores.add(ignore)) markDirty();
 	}
 
 	public void removeIgnore(UUID ignore) {
-		this.ignores.remove(ignore);
+		if (this.ignores.remove(ignore)) markDirty();
 	}
 
 	public Set<String> getListening() {
@@ -243,7 +263,7 @@ public class MineverseChatPlayer {
 
 	public boolean addListening(String channel) {
 		if(channel != null) {
-			this.listening.add(channel);
+			if (this.listening.add(channel)) markDirty();
 			return true;
 		}
 		return false;
@@ -251,14 +271,17 @@ public class MineverseChatPlayer {
 
 	public boolean removeListening(String channel) {
 		if(channel != null) {
-			this.listening.remove(channel);
+			if (this.listening.remove(channel)) markDirty();
 			return true;
 		}
 		return false;
 	}
 
 	public void clearListening() {
-		this.listening.clear();
+		if (!this.listening.isEmpty()) {
+			this.listening.clear();
+			markDirty();
+		}
 	}
 
 	public Collection<MuteContainer> getMutes() {
@@ -284,6 +307,7 @@ public class MineverseChatPlayer {
 	public boolean addMute(String channel, long time, String reason) {
 		if(channel != null && time >= 0) {
 			mutes.put(channel, new MuteContainer(channel, time, reason));
+			markDirty();
 			return true;
 		}
 		return false;
@@ -291,7 +315,7 @@ public class MineverseChatPlayer {
 
 	public boolean removeMute(String channel) {
 		if(channel != null) {
-			mutes.remove(channel);
+			if (mutes.remove(channel) != null) markDirty();
 			return true;
 		}
 		return false;
@@ -306,11 +330,11 @@ public class MineverseChatPlayer {
 	}
 
 	public void addBlockedCommand(String command) {
-		this.blockedCommands.add(command);
+		if (this.blockedCommands.add(command)) markDirty();
 	}
 
 	public void removeBlockedCommand(String command) {
-		this.blockedCommands.remove(command);
+		if (this.blockedCommands.remove(command)) markDirty();
 	}
 
 	public boolean isBlockedCommand(String command) {
@@ -322,7 +346,10 @@ public class MineverseChatPlayer {
 	}
 
 	public void setHost(boolean host) {
-		this.host = host;
+		if (this.host != host) {
+			this.host = host;
+			markDirty();
+		}
 	}
 
 	public UUID getParty() {
@@ -330,7 +357,10 @@ public class MineverseChatPlayer {
 	}
 
 	public void setParty(UUID party) {
-		this.party = party;
+		if (!java.util.Objects.equals(this.party, party)) {
+			this.party = party;
+			markDirty();
+		}
 	}
 
 	public boolean hasParty() {
@@ -342,7 +372,10 @@ public class MineverseChatPlayer {
 	}
 
 	public void setFilter(boolean filter) {
-		this.filter = filter;
+		if (this.filter != filter) {
+			this.filter = filter;
+			markDirty();
+		}
 	}
 
 	public boolean hasNotifications() {
@@ -350,7 +383,10 @@ public class MineverseChatPlayer {
 	}
 
 	public void setNotifications(boolean notifications) {
-		this.notifications = notifications;
+		if (this.notifications != notifications) {
+			this.notifications = notifications;
+			markDirty();
+		}
 	}
 
 	public boolean isOnline() {
@@ -402,7 +438,10 @@ public class MineverseChatPlayer {
 	}
 
 	public void setSpy(boolean spy) {
-		this.spy = spy;
+		if (this.spy != spy) {
+			this.spy = spy;
+			markDirty();
+		}
 	}
 
 	public boolean hasCommandSpy() {
@@ -416,7 +455,10 @@ public class MineverseChatPlayer {
 	}
 
 	public void setCommandSpy(boolean commandSpy) {
-		this.commandSpy = commandSpy;
+		if (this.commandSpy != commandSpy) {
+			this.commandSpy = commandSpy;
+			markDirty();
+		}
 	}
 
 	public boolean isQuickChat() {
@@ -509,11 +551,29 @@ public class MineverseChatPlayer {
 	}
 
 	public void setModified(boolean modified) {
-		this.modified = modified;
+		if (modified) {
+			markDirty();
+		} else {
+			this.modified = false;
+		}
 	}
 
 	public boolean wasModified() {
 		return this.modified;
+	}
+
+	public long getStorageRevision() {
+		return this.storageRevision;
+	}
+
+	public void setStorageRevision(long storageRevision) {
+		this.storageRevision = Math.max(0L, storageRevision);
+	}
+
+	private void markDirty() {
+		this.modified = true;
+		this.storageRevision++;
+		PlayerData.markDirty(this);
 	}
 
 	public List<ChatMessage> getMessages() {

@@ -42,17 +42,11 @@ public class ChannelAlias extends Command {
 					}
 					mcp.addListening(channel.getName());
 					mcp.setCurrentChannel(channel);
-					if (channel.getBungee()) {
-						MineverseChat.synchronize(mcp, true);
-					}
 					return true;
 				} else {
 					mcp.setQuickChat(true);
 					mcp.setQuickChannel(channel);
 					mcp.addListening(channel.getName());
-					if (channel.getBungee()) {
-						MineverseChat.synchronize(mcp, true);
-					}
 					String msg = "";
 					for (int x = 0; x < args.length; x++) {
 						if (args[x].length() > 0)

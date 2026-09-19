@@ -3,13 +3,16 @@ package mineverse.Aust1n46.chat.database;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.junit.AfterClass;
@@ -86,8 +89,8 @@ public class PlayerDataDefaultStateTest {
 	}
 
 	@Test
-	public void existingFileIsAlwaysWritten() {
-		assertTrue(PlayerData.shouldStorePlayerData(mcp, true));
+	public void existingDefaultRecordIsDeletedInsteadOfRewritten() {
+		assertFalse(PlayerData.shouldStorePlayerData(mcp, true));
 	}
 
 	@Test
@@ -150,5 +153,26 @@ public class PlayerDataDefaultStateTest {
 		mockedChatChannel.when(ChatChannel::getDefaultChannel).thenReturn(null);
 
 		assertFalse(PlayerData.isDefaultPlayerState(mcp));
+	}
+
+	@Test
+	public void dirtyOfflinePlayerIsQueuedWithoutScanningAllPlayers() {
+		UUID uuid = UUID.randomUUID();
+		when(mcp.getUUID()).thenReturn(uuid);
+		when(mcp.getName()).thenReturn("OfflinePlayer");
+		when(mcp.getParty()).thenReturn(null);
+		when(mcp.getJsonFormat()).thenReturn("Default");
+		when(mcp.getStorageRevision()).thenReturn(4L);
+		when(mcp.wasModified()).thenReturn(true);
+		PlayerSaveCoordinator storage = mock(PlayerSaveCoordinator.class);
+		Set<UUID> dirtyPlayers = ConcurrentHashMap.newKeySet();
+		dirtyPlayers.add(uuid);
+
+		PlayerData.flushDirtyPlayers(storage, dirtyPlayers, ignored -> mcp);
+
+		verify(storage).queue(Mockito.argThat(snapshot -> snapshot.uuid().equals(uuid)
+				&& snapshot.revision() == 4L));
+		verify(mcp).setModified(false);
+		assertTrue(dirtyPlayers.isEmpty());
 	}
 }

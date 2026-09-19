@@ -1,22 +1,19 @@
 package mineverse.Aust1n46.chat.database;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.StringTokenizer;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import org.bukkit.Bukkit;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 
 import mineverse.Aust1n46.chat.MineverseChat;
 import mineverse.Aust1n46.chat.api.MineverseChatAPI;
@@ -24,308 +21,296 @@ import mineverse.Aust1n46.chat.api.MineverseChatPlayer;
 import mineverse.Aust1n46.chat.channel.ChatChannel;
 import mineverse.Aust1n46.chat.command.mute.MuteContainer;
 import mineverse.Aust1n46.chat.utilities.Format;
-import mineverse.Aust1n46.chat.utilities.UUIDFetcher;
 
 /**
- * Class for reading and writing player data.
- *
- * @author Aust1n46
+ * Player storage facade. Bukkit state is captured on the server thread and only
+ * immutable snapshots are passed to the storage worker.
  */
-public class PlayerData {
-    private static MineverseChat plugin = MineverseChat.getInstance();
-    private static final String PLAYER_DATA_DIRECTORY_PATH = plugin.getDataFolder().getAbsolutePath() + "/PlayerData";
+public final class PlayerData {
+    private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(10);
+    private static final ConcurrentHashMap<UUID, PlayerStateSnapshot> LOGIN_STATES = new ConcurrentHashMap<>();
+    private static final Set<UUID> DIRTY_PLAYERS = ConcurrentHashMap.newKeySet();
 
-    public static void loadLegacyPlayerData() {
-        File legacyPlayerDataFile = new File(plugin.getDataFolder().getAbsolutePath(), "Players.yml");
-        if (!legacyPlayerDataFile.isFile()) {
-            return;
+    private static volatile PlayerSaveCoordinator coordinator;
+    private static volatile MigrationResult migrationResult;
+    private static volatile String configuredDefaultChannel;
+    private static volatile Set<String> configuredAutojoinChannels = Set.of();
+
+    private PlayerData() {}
+
+    public static synchronized MigrationResult initialize(MineverseChat plugin) throws Exception {
+        if (coordinator != null) {
+            return migrationResult;
         }
-        try {
-            Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - Detected Legacy Player Data!"));
-            Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - Converting to new structure and deleting old Players.yml file!"));
-            FileConfiguration playerData = YamlConfiguration.loadConfiguration(legacyPlayerDataFile);
-            for (String uuidString : playerData.getConfigurationSection("players").getKeys(false)) {
-                UUID uuid = UUID.fromString(uuidString);
-                if (UUIDFetcher.shouldSkipOfflineUUID(uuid)) {
-                    Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - Skipping Offline UUID: " + uuid));
-                    continue;
-                }
-                String name = playerData.getConfigurationSection("players." + uuid).getString("name");
-                String currentChannelName = playerData.getConfigurationSection("players." + uuid).getString("current");
-                ChatChannel currentChannel = ChatChannel.isChannel(currentChannelName) ? ChatChannel.getChannel(currentChannelName) : ChatChannel.getDefaultChannel();
-                Set<UUID> ignores = new HashSet<UUID>();
-                StringTokenizer i = new StringTokenizer(playerData.getConfigurationSection("players." + uuidString).getString("ignores"), ",");
-                while (i.hasMoreTokens()) {
-                    ignores.add(UUID.fromString(i.nextToken()));
-                }
-                Set<String> listening = new HashSet<String>();
-                StringTokenizer l = new StringTokenizer(playerData.getConfigurationSection("players." + uuidString).getString("listen"), ",");
-                while (l.hasMoreTokens()) {
-                    String channel = l.nextToken();
-                    if (ChatChannel.isChannel(channel)) {
-                        listening.add(channel);
-                    }
-                }
-                HashMap<String, MuteContainer> mutes = new HashMap<String, MuteContainer>();
-                StringTokenizer m = new StringTokenizer(playerData.getConfigurationSection("players." + uuidString).getString("mutes"), ",");
-                while (m.hasMoreTokens()) {
-                    String[] parts = m.nextToken().split(":");
-                    if (ChatChannel.isChannel(parts[0])) {
-                        if (parts[1].equals("null")) {
-                            Bukkit.getConsoleSender().sendMessage("[VentureChat] Null Mute Time: " + parts[0] + " " + name);
-                            continue;
-                        }
-                        String channelName = parts[0];
-                        mutes.put(channelName, new MuteContainer(channelName, Long.parseLong(parts[1])));
-                    }
-                }
-                Set<String> blockedCommands = new HashSet<String>();
-                StringTokenizer b = new StringTokenizer(playerData.getConfigurationSection("players." + uuidString).getString("blockedcommands"), ",");
-                while (b.hasMoreTokens()) {
-                    blockedCommands.add(b.nextToken());
-                }
-                boolean host = playerData.getConfigurationSection("players." + uuidString).getBoolean("host");
-                UUID party = playerData.getConfigurationSection("players." + uuidString).getString("party").length() > 0 ? UUID.fromString(playerData.getConfigurationSection("players." + uuidString).getString("party")) : null;
-                boolean filter = playerData.getConfigurationSection("players." + uuidString).getBoolean("filter");
-                boolean notifications = playerData.getConfigurationSection("players." + uuidString).getBoolean("notifications");
-                String jsonFormat = "Default";
-                boolean spy = playerData.getConfigurationSection("players." + uuidString).getBoolean("spy", false);
-                boolean commandSpy = playerData.getConfigurationSection("players." + uuidString).getBoolean("commandspy", false);
-                boolean rangedSpy = playerData.getConfigurationSection("players." + uuidString).getBoolean("rangedspy", false);
-                boolean messageToggle = playerData.getConfigurationSection("players." + uuidString).getBoolean("messagetoggle", true);
-                boolean bungeeToggle = playerData.getConfigurationSection("players." + uuidString).getBoolean("bungeetoggle", true);
-                MineverseChatPlayer mcp = new MineverseChatPlayer(uuid, name, currentChannel, ignores, listening, mutes, blockedCommands, host, party, filter, notifications, jsonFormat, spy, commandSpy, rangedSpy, messageToggle, bungeeToggle);
-                mcp.setModified(true);
-                MineverseChatAPI.addMineverseChatPlayerToMap(mcp);
-                MineverseChatAPI.addNameToMap(mcp);
-            }
-        } catch (Exception e) {
-            MineverseChatAPI.clearMineverseChatPlayerMap();
-            MineverseChatAPI.clearNameMap();
-            Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - Error Loading Legacy Player Data!"));
-            Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - Deleted Players.yml file!"));
-        } finally {
-            legacyPlayerDataFile.delete();
+        String defaultChannel = ChatChannel.getDefaultChannel().getName();
+        Set<String> autojoinChannels = autojoinChannels();
+        configuredDefaultChannel = defaultChannel;
+        configuredAutojoinChannels = Set.copyOf(autojoinChannels);
+        Set<String> validChannels = new HashSet<>();
+        for (ChatChannel channel : ChatChannel.getChatChannels()) {
+            validChannels.add(channel.getName());
         }
+
+        Path dataFolder = plugin.getDataFolder().toPath();
+        Path database = dataFolder.resolve("venturechat.db");
+        migrationResult = new YamlToSqliteMigrator(dataFolder, database, defaultChannel, autojoinChannels, validChannels)
+                .migrateIfNeeded();
+
+        PlayerStateRepository repository;
+        if (migrationResult.status() == MigrationResult.Status.FAILED_USING_YAML) {
+            repository = new LegacyYamlFallbackRepository(dataFolder, defaultChannel, autojoinChannels, validChannels);
+            Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll(
+                    "&8[&eVentureChat&8]&c - SQLite migration could not complete; safely using the original YAML data."));
+            Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll(
+                    "&8[&eVentureChat&8]&c - " + migrationResult.detail()));
+        } else {
+            repository = new SqlitePlayerStateRepository(database, defaultChannel, autojoinChannels);
+        }
+        repository.initialize();
+
+        coordinator = new PlayerSaveCoordinator(repository, dataFolder.resolve("player-storage-recovery.json"));
+        coordinator.replayRecovery();
+        return migrationResult;
     }
 
-    public static void loadPlayerData() {
-        try {
-            File playerDataDirectory = new File(PLAYER_DATA_DIRECTORY_PATH);
-            if (!playerDataDirectory.exists()) {
-                playerDataDirectory.mkdirs();
-            }
-            Files.walk(Paths.get(PLAYER_DATA_DIRECTORY_PATH))
-                    .filter(Files::isRegularFile)
-                    .forEach((path) -> readPlayerDataFile(path));
-        } catch (IOException e) {
-            e.printStackTrace();
+    public static void prepareLogin(UUID uuid, String name) throws Exception {
+        PlayerSaveCoordinator storage = requireCoordinator();
+        PlayerStateSnapshot state = storage.load(uuid).get()
+                .orElseGet(() -> PlayerStateSnapshot.defaults(uuid, name,
+                        configuredDefaultChannel, configuredAutojoinChannels, 0L));
+        LOGIN_STATES.put(uuid, state);
+    }
+
+    public static MineverseChatPlayer consumeLogin(UUID uuid, String currentName) {
+        PlayerStateSnapshot state = LOGIN_STATES.remove(uuid);
+        if (state == null) {
+            state = PlayerStateSnapshot.defaults(uuid, currentName,
+                    configuredDefaultChannel, configuredAutojoinChannels, 0L);
+        }
+        if (!state.name().equals(currentName)) {
+            state = new PlayerStateSnapshot(state.uuid(), currentName, state.currentChannel(), state.ignores(),
+                    state.listening(), state.mutes(), state.blockedCommands(), state.host(), state.party(),
+                    state.filter(), state.notifications(), state.jsonFormat(), state.spy(), state.commandSpy(),
+                    state.rangedSpy(), state.messageToggle(), state.revision() + 1L);
+        }
+        return toPlayer(state);
+    }
+
+    public static void savePlayerData(MineverseChatPlayer player) {
+        if (player == null || coordinator == null) {
+            return;
+        }
+        DIRTY_PLAYERS.remove(player.getUUID());
+        coordinator.queue(snapshot(player));
+        player.setModified(false);
+    }
+
+    public static void markDirty(MineverseChatPlayer player) {
+        if (coordinator != null && player != null) {
+            DIRTY_PLAYERS.add(player.getUUID());
         }
     }
 
     /**
-     * Loads the player data file for a specific player. Corrupt/invalid data files are skipped and deleted.
-     *
-     * @param path
+     * Queues only currently online players. Historical players are never scanned.
      */
-    private static void readPlayerDataFile(Path path) {
-        MineverseChatPlayer mcp;
-        File playerDataFile = path.toFile();
-        if (!playerDataFile.exists()) {
-            return;
-        }
-        try {
-            FileConfiguration playerDataFileYamlConfiguration = YamlConfiguration.loadConfiguration(playerDataFile);
-            String uuidString = playerDataFile.getName().replace(".yml", "");
-            UUID uuid = UUID.fromString(uuidString);
-            if (UUIDFetcher.shouldSkipOfflineUUID(uuid)) {
-                Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - Skipping Offline UUID: " + uuid));
-                Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - File will be skipped and deleted."));
-                playerDataFile.delete();
-                return;
-            }
-            String name = playerDataFileYamlConfiguration.getString("name");
-            String currentChannelName = playerDataFileYamlConfiguration.getString("current");
-            ChatChannel currentChannel = ChatChannel.isChannel(currentChannelName) ? ChatChannel.getChannel(currentChannelName) : ChatChannel.getDefaultChannel();
-            Set<UUID> ignores = new HashSet<UUID>();
-            StringTokenizer i = new StringTokenizer(playerDataFileYamlConfiguration.getString("ignores"), ",");
-            while (i.hasMoreTokens()) {
-                ignores.add(UUID.fromString(i.nextToken()));
-            }
-            Set<String> listening = new HashSet<String>();
-            StringTokenizer l = new StringTokenizer(playerDataFileYamlConfiguration.getString("listen"), ",");
-            while (l.hasMoreTokens()) {
-                String channel = l.nextToken();
-                if (ChatChannel.isChannel(channel)) {
-                    listening.add(channel);
-                }
-            }
-            HashMap<String, MuteContainer> mutes = new HashMap<String, MuteContainer>();
-            ConfigurationSection muteSection = playerDataFileYamlConfiguration.getConfigurationSection("mutes");
-            for (String channelName : muteSection.getKeys(false)) {
-                ConfigurationSection channelSection = muteSection.getConfigurationSection(channelName);
-                mutes.put(channelName, new MuteContainer(channelName, channelSection.getLong("time"), channelSection.getString("reason")));
-            }
-
-            Set<String> blockedCommands = new HashSet<String>();
-            StringTokenizer b = new StringTokenizer(playerDataFileYamlConfiguration.getString("blockedcommands"), ",");
-            while (b.hasMoreTokens()) {
-                blockedCommands.add(b.nextToken());
-            }
-            boolean host = playerDataFileYamlConfiguration.getBoolean("host");
-            UUID party = playerDataFileYamlConfiguration.getString("party").length() > 0 ? UUID.fromString(playerDataFileYamlConfiguration.getString("party")) : null;
-            boolean filter = playerDataFileYamlConfiguration.getBoolean("filter");
-            boolean notifications = playerDataFileYamlConfiguration.getBoolean("notifications");
-            String jsonFormat = "Default";
-            boolean spy = playerDataFileYamlConfiguration.getBoolean("spy", false);
-            boolean commandSpy = playerDataFileYamlConfiguration.getBoolean("commandspy", false);
-            boolean rangedSpy = playerDataFileYamlConfiguration.getBoolean("rangedspy", false);
-            boolean messageToggle = playerDataFileYamlConfiguration.getBoolean("messagetoggle", true);
-            boolean bungeeToggle = playerDataFileYamlConfiguration.getBoolean("bungeetoggle", true);
-            mcp = new MineverseChatPlayer(uuid, name, currentChannel, ignores, listening, mutes, blockedCommands, host, party, filter, notifications, jsonFormat, spy, commandSpy, rangedSpy, messageToggle, bungeeToggle);
-        } catch (Exception e) {
-            Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - Error Loading Data File: " + playerDataFile.getName()));
-            Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - File will be skipped and deleted."));
-            playerDataFile.delete();
-            return;
-        }
-        if (mcp != null) {
-            MineverseChatAPI.addMineverseChatPlayerToMap(mcp);
-            MineverseChatAPI.addNameToMap(mcp);
-        }
-    }
-
-    public static void savePlayerData(MineverseChatPlayer mcp) {
-        if (mcp == null || UUIDFetcher.shouldSkipOfflineUUID(mcp.getUUID()) || (!mcp.isOnline() && !mcp.wasModified())) {
-            return;
-        }
-        File playerDataFile = new File(PLAYER_DATA_DIRECTORY_PATH, mcp.getUUID() + ".yml");
-        if (!shouldStorePlayerData(mcp, playerDataFile.exists())) {
-            return;
-        }
-        try {
-            FileConfiguration playerDataFileYamlConfiguration = YamlConfiguration.loadConfiguration(playerDataFile);
-            if (!playerDataFile.exists()) {
-                playerDataFileYamlConfiguration.save(playerDataFile);
-            }
-
-            playerDataFileYamlConfiguration.set("name", mcp.getName());
-            playerDataFileYamlConfiguration.set("current", mcp.getCurrentChannel().getName());
-            String ignores = "";
-            for (UUID s : mcp.getIgnores()) {
-                ignores += s.toString() + ",";
-            }
-            playerDataFileYamlConfiguration.set("ignores", ignores);
-            String listening = "";
-            for (String channel : mcp.getListening()) {
-                ChatChannel c = ChatChannel.getChannel(channel);
-                listening += c.getName() + ",";
-            }
-            String blockedCommands = "";
-            for (String s : mcp.getBlockedCommands()) {
-                blockedCommands += s + ",";
-            }
-            if (listening.length() > 0) {
-                listening = listening.substring(0, listening.length() - 1);
-            }
-            playerDataFileYamlConfiguration.set("listen", listening);
-
-            ConfigurationSection muteSection = playerDataFileYamlConfiguration.createSection("mutes");
-            for (MuteContainer mute : mcp.getMutes()) {
-                ConfigurationSection channelSection = muteSection.createSection(mute.getChannel());
-                channelSection.set("time", mute.getDuration());
-                channelSection.set("reason", mute.getReason());
-            }
-
-            playerDataFileYamlConfiguration.set("blockedcommands", blockedCommands);
-            playerDataFileYamlConfiguration.set("host", mcp.isHost());
-            playerDataFileYamlConfiguration.set("party", mcp.hasParty() ? mcp.getParty().toString() : "");
-            playerDataFileYamlConfiguration.set("filter", mcp.hasFilter());
-            playerDataFileYamlConfiguration.set("notifications", mcp.hasNotifications());
-            playerDataFileYamlConfiguration.set("spy", mcp.isSpy());
-            playerDataFileYamlConfiguration.set("commandspy", mcp.hasCommandSpy());
-            playerDataFileYamlConfiguration.set("rangedspy", mcp.getRangedSpy());
-            playerDataFileYamlConfiguration.set("messagetoggle", mcp.getMessageToggle());
-            playerDataFileYamlConfiguration.set("bungeetoggle", mcp.getBungeeToggle());
-            Calendar currentDate = Calendar.getInstance();
-            SimpleDateFormat formatter = new SimpleDateFormat("yyyy/MMM/dd HH:mm:ss");
-            String dateNow = formatter.format(currentDate.getTime());
-            playerDataFileYamlConfiguration.set("date", dateNow);
-            mcp.setModified(false);
-
-            playerDataFileYamlConfiguration.save(playerDataFile);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
+    @Deprecated
     public static void savePlayerData() {
-        for (MineverseChatPlayer p : MineverseChatAPI.getMineverseChatPlayers()) {
-            savePlayerData(p);
+        flushDirtyPlayers();
+    }
+
+    public static void flushDirtyPlayers() {
+        PlayerSaveCoordinator storage = coordinator;
+        if (storage == null) return;
+        flushDirtyPlayers(storage, DIRTY_PLAYERS, MineverseChatAPI::getCachedMineverseChatPlayer);
+    }
+
+    /** @deprecated use {@link #flushDirtyPlayers()} */
+    @Deprecated
+    public static void flushDirtyOnlinePlayers() {
+        flushDirtyPlayers();
+    }
+
+    static void flushDirtyPlayers(PlayerSaveCoordinator storage, Set<UUID> dirtyPlayers,
+            Function<UUID, MineverseChatPlayer> resolver) {
+        for (UUID uuid : Set.copyOf(dirtyPlayers)) {
+            if (!dirtyPlayers.remove(uuid)) continue;
+            MineverseChatPlayer player = resolver.apply(uuid);
+            if (player != null && player.wasModified()) {
+                storage.queue(snapshot(player));
+                player.setModified(false);
+            }
         }
     }
 
     /**
-     * Whether a player's data file is worth writing.
-     * <p>
-     * A player who has not changed anything still holds exactly the values a brand
-     * new player starts with, so a file for them would contain nothing but defaults.
-     * Skipping those keeps the PlayerData folder small, which matters because every
-     * file in it is parsed again on startup. Existing files are always written,
-     * since the player may be changing settings back to their defaults.
-     *
-     * @param mcp
-     *            the player being saved
-     * @param fileExists
-     *            whether the player already has a data file
-     * @return true when the file should be written
+     * Bulk startup loading was removed in 4.0. Players are loaded one at a time
+     * during asynchronous pre-login.
      */
-    static boolean shouldStorePlayerData(MineverseChatPlayer mcp, boolean fileExists) {
-        return fileExists || !isDefaultPlayerState(mcp);
+    @Deprecated
+    public static void loadPlayerData() {
+        // Intentionally empty.
     }
 
     /**
-     * Whether every stored setting is still on the value a new player starts with.
-     *
-     * @param mcp
-     *            the player to inspect
-     * @return true when the player has not customised anything
+     * Legacy YAML is migrated by initialize() before players can join.
      */
-    static boolean isDefaultPlayerState(MineverseChatPlayer mcp) {
-        if (mcp == null || mcp.getCurrentChannel() == null || mcp.getIgnores() == null || mcp.getMutes() == null
-                || mcp.getBlockedCommands() == null || mcp.getListening() == null
+    @Deprecated
+    public static void loadLegacyPlayerData() {
+        // Intentionally empty.
+    }
+
+    public static CompletableFuture<Optional<PlayerStateSnapshot>> findByUuidAsync(UUID uuid) {
+        return requireCoordinator().load(uuid);
+    }
+
+    public static CompletableFuture<Optional<PlayerStateSnapshot>> findByNameAsync(String name) {
+        return requireCoordinator().findByName(name);
+    }
+
+    public static CompletableFuture<java.util.List<PlayerStateSnapshot>> findByPartyAsync(UUID party) {
+        return requireCoordinator().findByParty(party);
+    }
+
+    /**
+     * Compatibility path for older synchronous API calls. It waits for one
+     * background-worker lookup and never scans all stored players.
+     */
+    public static Optional<MineverseChatPlayer> loadPlayerBlocking(UUID uuid) {
+        PlayerSaveCoordinator storage = coordinator;
+        if (storage == null) return Optional.empty();
+        try {
+            return storage.load(uuid).join().map(PlayerData::toPlayer);
+        } catch (CompletionException exception) {
+            throw new IllegalStateException("Unable to load stored player " + uuid, exception.getCause());
+        }
+    }
+
+    /**
+     * Compatibility path for commands that address an offline player by name.
+     */
+    public static Optional<MineverseChatPlayer> loadPlayerBlocking(String name) {
+        PlayerSaveCoordinator storage = coordinator;
+        if (storage == null) return Optional.empty();
+        try {
+            return storage.findByName(name).join().map(PlayerData::toPlayer);
+        } catch (CompletionException exception) {
+            throw new IllegalStateException("Unable to load stored player " + name, exception.getCause());
+        }
+    }
+
+    public static synchronized void shutdown() {
+        PlayerSaveCoordinator storage = coordinator;
+        if (storage == null) return;
+        flushDirtyPlayers();
+        for (MineverseChatPlayer player : MineverseChatAPI.getOnlineMineverseChatPlayers()) {
+            savePlayerData(player);
+        }
+        try {
+            storage.shutdown(SHUTDOWN_TIMEOUT);
+        } catch (Exception exception) {
+            Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll(
+                    "&8[&eVentureChat&8]&c - Player storage shutdown required recovery: " + exception.getMessage()));
+        } finally {
+            coordinator = null;
+            LOGIN_STATES.clear();
+            DIRTY_PLAYERS.clear();
+        }
+    }
+
+    public static MigrationResult getMigrationResult() {
+        return migrationResult;
+    }
+
+    static PlayerStateSnapshot snapshot(MineverseChatPlayer player) {
+        Map<String, PlayerStateSnapshot.MuteState> mutes = new HashMap<>();
+        for (MuteContainer mute : player.getMutes()) {
+            mutes.put(mute.getChannel(), new PlayerStateSnapshot.MuteState(mute.getDuration(), mute.getReason()));
+        }
+        return new PlayerStateSnapshot(
+                player.getUUID(),
+                player.getName(),
+                player.getCurrentChannel().getName(),
+                new HashSet<>(player.getIgnores()),
+                new HashSet<>(player.getListening()),
+                mutes,
+                new HashSet<>(player.getBlockedCommands()),
+                player.isHost(),
+                player.getParty(),
+                player.hasFilter(),
+                player.hasNotifications(),
+                player.getJsonFormat(),
+                player.isSpy(),
+                player.hasCommandSpy(),
+                player.getRangedSpy(),
+                player.getMessageToggle(),
+                player.getStorageRevision());
+    }
+
+    static MineverseChatPlayer toPlayer(PlayerStateSnapshot state) {
+        ChatChannel current = ChatChannel.isChannel(state.currentChannel())
+                ? ChatChannel.getChannel(state.currentChannel())
+                : ChatChannel.getDefaultChannel();
+        Set<String> listening = new HashSet<>();
+        for (String channel : state.listening()) {
+            if (ChatChannel.isChannel(channel)) listening.add(ChatChannel.getChannel(channel).getName());
+        }
+        if (listening.isEmpty()) listening.addAll(autojoinChannels());
+
+        HashMap<String, MuteContainer> mutes = new HashMap<>();
+        state.mutes().forEach((channel, mute) -> {
+            if (ChatChannel.isChannel(channel)) {
+                mutes.put(channel, new MuteContainer(channel, mute.expiresAt(), mute.reason()));
+            }
+        });
+        MineverseChatPlayer player = new MineverseChatPlayer(state.uuid(), state.name(), current,
+                new HashSet<>(state.ignores()), listening, mutes, new HashSet<>(state.blockedCommands()),
+                state.host(), state.party(), state.filter(), state.notifications(), state.jsonFormat(),
+                state.spy(), state.commandSpy(), state.rangedSpy(), state.messageToggle());
+        player.setStorageRevision(state.revision());
+        player.setModified(false);
+        return player;
+    }
+
+    static boolean shouldStorePlayerData(MineverseChatPlayer player, boolean ignoredExistingFile) {
+        return !isDefaultPlayerState(player);
+    }
+
+    static boolean isDefaultPlayerState(MineverseChatPlayer player) {
+        if (player == null || player.getCurrentChannel() == null || player.getIgnores() == null
+                || player.getMutes() == null || player.getBlockedCommands() == null || player.getListening() == null
                 || ChatChannel.getDefaultChannel() == null) {
             return false;
         }
-        return mcp.getCurrentChannel().getName().equals(ChatChannel.getDefaultChannel().getName())
-                && mcp.getIgnores().isEmpty()
-                && mcp.getMutes().isEmpty()
-                && mcp.getBlockedCommands().isEmpty()
-                && !mcp.isHost()
-                && !mcp.hasParty()
-                && mcp.hasFilter()
-                && mcp.hasNotifications()
-                && !mcp.isSpy()
-                && !mcp.hasCommandSpy()
-                && !mcp.getRangedSpy()
-                && mcp.getMessageToggle()
-                && mcp.getBungeeToggle()
-                && listensOnlyToAutojoinChannels(mcp);
+        return player.getCurrentChannel().getName().equals(ChatChannel.getDefaultChannel().getName())
+                && player.getIgnores().isEmpty()
+                && player.getMutes().isEmpty()
+                && player.getBlockedCommands().isEmpty()
+                && !player.isHost()
+                && !player.hasParty()
+                && player.hasFilter()
+                && player.hasNotifications()
+                && !player.isSpy()
+                && !player.hasCommandSpy()
+                && !player.getRangedSpy()
+                && player.getMessageToggle()
+                && autojoinChannels().containsAll(player.getListening());
     }
 
-    /**
-     * Whether the player is only listening to the channels they were placed in
-     * automatically, rather than having joined any extra ones.
-     *
-     * @param mcp
-     *            the player to inspect
-     * @return true when every channel they listen to is an autojoin channel
-     */
-    private static boolean listensOnlyToAutojoinChannels(MineverseChatPlayer mcp) {
-        Set<String> autojoinChannels = new HashSet<String>();
+    private static Set<String> autojoinChannels() {
+        Set<String> channels = new HashSet<>();
         for (ChatChannel channel : ChatChannel.getAutojoinList()) {
-            autojoinChannels.add(channel.getName());
+            channels.add(channel.getName());
         }
-        return autojoinChannels.containsAll(mcp.getListening());
+        if (channels.isEmpty() && ChatChannel.getDefaultChannel() != null) {
+            channels.add(ChatChannel.getDefaultChannel().getName());
+        }
+        return channels;
+    }
+
+    private static PlayerSaveCoordinator requireCoordinator() {
+        PlayerSaveCoordinator storage = coordinator;
+        if (storage == null) throw new IllegalStateException("Player storage has not been initialized");
+        return storage;
     }
 }

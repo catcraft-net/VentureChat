@@ -1,7 +1,5 @@
 package mineverse.Aust1n46.chat.command.mute;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -10,10 +8,8 @@ import java.util.stream.Collectors;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 import org.bukkit.util.StringUtil;
 
-import mineverse.Aust1n46.chat.MineverseChat;
 import mineverse.Aust1n46.chat.api.MineverseChatAPI;
 import mineverse.Aust1n46.chat.api.MineverseChatPlayer;
 import mineverse.Aust1n46.chat.channel.ChatChannel;
@@ -56,10 +52,6 @@ public class Mute extends Command {
 							reasonBuilder.append(args[a] + " ");
 						}
 						reason = Format.FormatStringAll(reasonBuilder.toString().trim());
-					}
-					if (channel.getBungee()) {
-						sendBungeeCordMute(sender, args[1], channel, time, reason);
-						return true;
 					}
 					MineverseChatPlayer playerToMute = MineverseChatAPI.getMineverseChatPlayer(args[1]);
 					if (playerToMute == null || (!playerToMute.isOnline() && !sender.hasPermission("venturechat.mute.offline"))) {
@@ -146,11 +138,6 @@ public class Mute extends Command {
 		if (args.length == 2) {
 			if (ChatChannel.isChannel(args[0])) {
 				ChatChannel chatChannelObj = ChatChannel.getChannel(args[0]);
-				if (chatChannelObj.getBungee()) {
-					StringUtil.copyPartialMatches(args[1], MineverseChatAPI.getNetworkPlayerNames(), completions);
-					Collections.sort(completions);
-					return completions;
-				}
 				StringUtil.copyPartialMatches(args[1], MineverseChatAPI.getOnlineMineverseChatPlayers().stream().filter(mcp -> !mcp.isMuted(chatChannelObj.getName()))
 						.map(MineverseChatPlayer::getName).collect(Collectors.toList()), completions);
 				Collections.sort(completions);
@@ -164,27 +151,5 @@ public class Mute extends Command {
 
 		}
 		return Collections.emptyList();
-	}
-
-	private void sendBungeeCordMute(CommandSender sender, String playerToMute, ChatChannel channel, long time, String reason) {
-		ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
-		DataOutputStream out = new DataOutputStream(byteOutStream);
-		try {
-			out.writeUTF("Mute");
-			out.writeUTF("Send");
-			if (sender instanceof Player) {
-				out.writeUTF(((Player) sender).getUniqueId().toString());
-			} else {
-				out.writeUTF("VentureChat:Console");
-			}
-			out.writeUTF(playerToMute);
-			out.writeUTF(channel.getName());
-			out.writeLong(time);
-			out.writeUTF(reason);
-			MineverseChat.sendPluginMessage(byteOutStream);
-			out.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
 	}
 }

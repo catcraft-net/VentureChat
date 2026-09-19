@@ -8,7 +8,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
-import mineverse.Aust1n46.chat.MineverseChat;
 import mineverse.Aust1n46.chat.api.MineverseChatAPI;
 import mineverse.Aust1n46.chat.api.MineverseChatPlayer;
 import mineverse.Aust1n46.chat.api.events.ChannelJoinEvent;
@@ -68,9 +67,6 @@ public class Channel extends Command implements Listener {
 		mcp.addListening(channel.getName());
 		mcp.setCurrentChannel(channel);
 		mcp.getPlayer().sendMessage(event.getMessage());
-		if (channel.getBungee()) {
-			MineverseChat.synchronize(mcp, true);
-		}
-		return;
+			return;
 	}
 }

@@ -27,25 +27,10 @@ public class Kickchannelall extends Command {
 				sender.sendMessage(LocalizedMessage.PLAYER_OFFLINE.toString().replace("{args}", args[0]));
 				return true;
 			}
-			boolean isThereABungeeChannel = false;
-			for (String channel : player.getListening()) {
-				if (ChatChannel.isChannel(channel)) {
-					ChatChannel chatChannelObj = ChatChannel.getChannel(channel);
-					if (chatChannelObj.getBungee()) {
-						isThereABungeeChannel = true;
-					}
-				}
-			}
 			player.clearListening();
 			sender.sendMessage(LocalizedMessage.KICK_CHANNEL_ALL_SENDER.toString().replace("{player}", player.getName()));
 			player.addListening(ChatChannel.getDefaultChannel().getName());
 			player.setCurrentChannel(ChatChannel.getDefaultChannel());
-			if (ChatChannel.getDefaultChannel().getBungee()) {
-				isThereABungeeChannel = true;
-			}
-			if (isThereABungeeChannel) {
-				MineverseChat.synchronize(player, true);
-			}
 			if (player.isOnline()) {
 				player.getPlayer().sendMessage(LocalizedMessage.KICK_CHANNEL_ALL_PLAYER.toString());
 				player.getPlayer().sendMessage(LocalizedMessage.MUST_LISTEN_ONE_CHANNEL.toString());

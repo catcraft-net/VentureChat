@@ -5,7 +5,6 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import mineverse.Aust1n46.chat.MineverseChat;
 import mineverse.Aust1n46.chat.api.MineverseChatAPI;
 import mineverse.Aust1n46.chat.api.MineverseChatPlayer;
 import mineverse.Aust1n46.chat.channel.ChatChannel;
@@ -39,10 +38,7 @@ public class Listen extends Command {
 			mcp.addListening(channel.getName());
 			mcp.getPlayer()
 					.sendMessage(LocalizedMessage.LISTEN_CHANNEL.toString().replace("{channel_color}", channel.getColor() + "").replace("{channel_name}", channel.getName()));
-			if (channel.getBungee()) {
-				MineverseChat.synchronize(mcp, true);
-			}
-			return true;
+				return true;
 		}
 		mcp.getPlayer().sendMessage(LocalizedMessage.COMMAND_INVALID_ARGUMENTS.toString().replace("{command}", "/listen").replace("{args}", "[channel]"));
 		return true;

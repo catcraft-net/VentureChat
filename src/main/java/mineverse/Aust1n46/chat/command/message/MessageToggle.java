@@ -26,12 +26,10 @@ public class MessageToggle extends Command {
 			if (!mcp.getMessageToggle()) {
 				mcp.setMessageToggle(true);
 				mcp.getPlayer().sendMessage(LocalizedMessage.MESSAGE_TOGGLE_ON.toString());
-				MineverseChat.synchronize(mcp, true);
 				return true;
 			}
 			mcp.setMessageToggle(false);
 			mcp.getPlayer().sendMessage(LocalizedMessage.MESSAGE_TOGGLE_OFF.toString());
-			MineverseChat.synchronize(mcp, true);
 			return true;
 		}
 		mcp.getPlayer().sendMessage(LocalizedMessage.COMMAND_NO_PERMISSION.toString());
