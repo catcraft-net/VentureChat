@@ -150,6 +150,7 @@ public class MineverseChat extends JavaPlugin {
         // Snapshot only players marked dirty at the end of each tick; all disk
         // work stays on the storage worker and repeated changes coalesce by UUID.
         scheduler.runTaskTimer(this, PlayerData::flushDirtyPlayers, 1L, 1L);
+        scheduler.runTaskTimer(this, PlayerData::expirePreparedLogins, 1200L, 1200L);
 
         scheduler.runTaskTimer(this, () -> {
             for (MineverseChatPlayer player : MineverseChatAPI.getOnlineMineverseChatPlayers()) {

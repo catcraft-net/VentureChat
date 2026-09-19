@@ -63,6 +63,7 @@ public class MineverseChatAPIUnstoredPlayerTest {
 	public void tearDown() {
 		MineverseChatAPI.clearMineverseChatPlayerMap();
 		MineverseChatAPI.clearNameMap();
+		MineverseChatAPI.clearOnlineMineverseChatPlayerMap();
 	}
 
 	@Test
@@ -141,5 +142,48 @@ public class MineverseChatAPIUnstoredPlayerTest {
 		assertNull(MineverseChatAPI.getCachedMineverseChatPlayer(first.getUUID()));
 		assertSame(last, MineverseChatAPI.getCachedMineverseChatPlayer(last.getUUID()));
 		assertEquals(MineverseChatAPI.MAX_CACHED_OFFLINE_PLAYERS, MineverseChatAPI.getMineverseChatPlayers().size());
+	}
+
+	@Test
+	public void reconnectReplacesTheOldCompatibilityWrapper() {
+		MineverseChatPlayer latest = null;
+		for (int index = 0; index < 100; index++) {
+			latest = new MineverseChatPlayer(PLAYER_UUID, "ReconnectPlayer");
+			MineverseChatAPI.addMineverseChatPlayerToMap(latest);
+		}
+
+		assertEquals(1, MineverseChatAPI.getMineverseChatPlayers().size());
+		assertEquals(1, MineverseChat.players.size());
+		assertSame(latest, MineverseChatAPI.getCachedMineverseChatPlayer(PLAYER_UUID));
+	}
+
+	@Test
+	public void reconnectReplacesTheOldOnlineCompatibilityWrapper() {
+		MineverseChatPlayer oldPlayer = new MineverseChatPlayer(PLAYER_UUID, "ReconnectPlayer");
+		MineverseChatPlayer latest = new MineverseChatPlayer(PLAYER_UUID, "ReconnectPlayer");
+		MineverseChatAPI.addMineverseChatOnlinePlayerToMap(oldPlayer);
+		MineverseChatAPI.addMineverseChatOnlinePlayerToMap(latest);
+
+		assertEquals(1, MineverseChatAPI.getOnlineMineverseChatPlayers().size());
+		assertEquals(1, MineverseChat.onlinePlayers.size());
+		assertSame(latest, MineverseChatAPI.getOnlineMineverseChatPlayer(PLAYER_UUID));
+
+		MineverseChatAPI.removeMineverseChatOnlinePlayerToMap(oldPlayer);
+		assertSame(latest, MineverseChatAPI.getOnlineMineverseChatPlayer(PLAYER_UUID));
+	}
+
+	@Test
+	public void newNameReplacesTheOldNameForTheSameUuid() {
+		MineverseChatPlayer oldPlayer = new MineverseChatPlayer(PLAYER_UUID, "OldName");
+		MineverseChatAPI.addMineverseChatPlayerToMap(oldPlayer);
+		MineverseChatAPI.addNameToMap(oldPlayer);
+
+		MineverseChatPlayer renamedPlayer = new MineverseChatPlayer(PLAYER_UUID, "NewName");
+		MineverseChatAPI.addMineverseChatPlayerToMap(renamedPlayer);
+		MineverseChatAPI.addNameToMap(renamedPlayer);
+		when(Bukkit.getOfflinePlayerIfCached("OldName")).thenReturn(null);
+
+		assertNull(MineverseChatAPI.getMineverseChatPlayer("OldName"));
+		assertSame(renamedPlayer, MineverseChatAPI.getMineverseChatPlayer("NewName"));
 	}
 }

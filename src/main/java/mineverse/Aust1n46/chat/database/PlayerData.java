@@ -28,7 +28,9 @@ import mineverse.Aust1n46.chat.utilities.Format;
  */
 public final class PlayerData {
     private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(10);
-    private static final ConcurrentHashMap<UUID, PlayerStateSnapshot> LOGIN_STATES = new ConcurrentHashMap<>();
+    private static final Duration PENDING_LOGIN_TTL = Duration.ofMinutes(5);
+    private static final int MAX_PENDING_LOGINS = 4096;
+    private static final PendingLoginCache LOGIN_STATES = new PendingLoginCache(MAX_PENDING_LOGINS);
     private static final Set<UUID> DIRTY_PLAYERS = ConcurrentHashMap.newKeySet();
 
     private static volatile PlayerSaveCoordinator coordinator;
@@ -78,11 +80,17 @@ public final class PlayerData {
         PlayerStateSnapshot state = storage.load(uuid).get()
                 .orElseGet(() -> PlayerStateSnapshot.defaults(uuid, name,
                         configuredDefaultChannel, configuredAutojoinChannels, 0L));
-        LOGIN_STATES.put(uuid, state);
+        long now = System.currentTimeMillis();
+        if (!LOGIN_STATES.put(state, now)) {
+            expirePreparedLogins(now);
+            if (!LOGIN_STATES.put(state, now)) {
+                throw new IllegalStateException("Too many player logins are currently pending");
+            }
+        }
     }
 
     public static MineverseChatPlayer consumeLogin(UUID uuid, String currentName) {
-        PlayerStateSnapshot state = LOGIN_STATES.remove(uuid);
+        PlayerStateSnapshot state = LOGIN_STATES.take(uuid).orElse(null);
         if (state == null) {
             state = PlayerStateSnapshot.defaults(uuid, currentName,
                     configuredDefaultChannel, configuredAutojoinChannels, 0L);
@@ -94,6 +102,14 @@ public final class PlayerData {
                     state.rangedSpy(), state.messageToggle(), state.revision() + 1L);
         }
         return toPlayer(state);
+    }
+
+    public static void expirePreparedLogins() {
+        expirePreparedLogins(System.currentTimeMillis());
+    }
+
+    static int expirePreparedLogins(long nowMillis) {
+        return LOGIN_STATES.expireAtOrBefore(nowMillis - PENDING_LOGIN_TTL.toMillis());
     }
 
     public static void savePlayerData(MineverseChatPlayer player) {

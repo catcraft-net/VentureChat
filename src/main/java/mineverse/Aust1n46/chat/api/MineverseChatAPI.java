@@ -28,6 +28,7 @@ public final class MineverseChatAPI {
 
     private static final ConcurrentHashMap<UUID, MineverseChatPlayer> playerMap = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, UUID> namesMap = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<UUID, String> uuidNamesMap = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<UUID, MineverseChatPlayer> onlinePlayerMap = new ConcurrentHashMap<>();
     private static final ConcurrentLinkedDeque<UUID> offlinePlayerOrder = new ConcurrentLinkedDeque<>();
     private static List<String> networkPlayerNames = new ArrayList<String>();
@@ -45,20 +46,31 @@ public final class MineverseChatAPI {
     }
 
     public static void addNameToMap(MineverseChatPlayer mcp) {
+        String previousName = uuidNamesMap.put(mcp.getUUID(), mcp.getName());
+        if (previousName != null && !previousName.equals(mcp.getName())) {
+            namesMap.remove(previousName, mcp.getUUID());
+        }
         namesMap.put(mcp.getName(), mcp.getUUID());
     }
 
     public static void removeNameFromMap(String name) {
-        namesMap.remove(name);
+        UUID uuid = namesMap.remove(name);
+        if (uuid != null) {
+            uuidNamesMap.remove(uuid, name);
+        }
     }
 
     public static void clearNameMap() {
         namesMap.clear();
+        uuidNamesMap.clear();
     }
 
     @SuppressWarnings("deprecation")
     public static void addMineverseChatPlayerToMap(MineverseChatPlayer mcp) {
-        playerMap.put(mcp.getUUID(), mcp);
+        MineverseChatPlayer previous = playerMap.put(mcp.getUUID(), mcp);
+        if (previous != null && previous != mcp) {
+            MineverseChat.players.remove(previous);
+        }
         MineverseChat.players.add(mcp);
     }
 
@@ -76,13 +88,19 @@ public final class MineverseChatAPI {
     @SuppressWarnings("deprecation")
     public static void addMineverseChatOnlinePlayerToMap(MineverseChatPlayer mcp) {
         offlinePlayerOrder.remove(mcp.getUUID());
-        onlinePlayerMap.put(mcp.getUUID(), mcp);
+        MineverseChatPlayer previous = onlinePlayerMap.put(mcp.getUUID(), mcp);
+        if (previous != null && previous != mcp) {
+            MineverseChat.onlinePlayers.remove(previous);
+        }
         MineverseChat.onlinePlayers.add(mcp);
     }
 
     @SuppressWarnings("deprecation")
     public static void removeMineverseChatOnlinePlayerToMap(MineverseChatPlayer mcp) {
-        onlinePlayerMap.remove(mcp.getUUID());
+        if (!onlinePlayerMap.remove(mcp.getUUID(), mcp)) {
+            MineverseChat.onlinePlayers.remove(mcp);
+            return;
+        }
         MineverseChat.onlinePlayers.remove(mcp);
         cacheOfflineMineverseChatPlayer(mcp);
     }
@@ -227,6 +245,7 @@ public final class MineverseChatAPI {
                     PlayerData.savePlayerData(evicted);
                 }
                 namesMap.remove(evicted.getName(), evictedUuid);
+                uuidNamesMap.remove(evictedUuid, evicted.getName());
                 MineverseChat.players.remove(evicted);
             }
         }
