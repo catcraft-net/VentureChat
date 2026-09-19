@@ -60,7 +60,8 @@ public class MineverseChat extends JavaPlugin implements PluginMessageListener {
 	// Plugin Messaging Channel
 	public static final String PLUGIN_MESSAGING_CHANNEL = "venturechat:data";
 
-	// Lets the sender reach a player who has blocked private messages
+	// Lets the sender force private messages through, even to a player who has
+	// blocked private messages or is ignoring them
 	public static final String MESSAGETOGGLE_BYPASS_PERMISSION = "venturechat.messagetoggle.bypass";
 	
 	// Event constants
@@ -1026,7 +1027,7 @@ public class MineverseChat extends JavaPlugin implements PluginMessageListener {
 						sendPluginMessage(stream);
 						return;
 					}
-					if(p.getIgnores().contains(sender)) {
+					if(p.getIgnores().contains(sender) && !senderBypassesMessageToggle) {
 						out.writeUTF("Message");
 						out.writeUTF("Echo");
 						out.writeUTF(server);

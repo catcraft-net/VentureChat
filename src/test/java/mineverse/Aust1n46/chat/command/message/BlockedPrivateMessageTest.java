@@ -21,6 +21,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.plugin.PluginManager;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -138,6 +139,13 @@ public class BlockedPrivateMessageTest {
 		mockedMineverseChatAPI.when(() -> MineverseChatAPI.getMineverseChatPlayer(TARGET_UUID)).thenReturn(targetMcp);
 		mockedMineverseChatAPI.when(MineverseChatAPI::getOnlineMineverseChatPlayers)
 				.thenReturn(Arrays.asList(senderMcp, targetMcp));
+	}
+
+	@After
+	public void tearDown() {
+		// The API stubs above are per test. Without this reset the UUID lookups
+		// leak into later tests and hand back the previous test's player mocks.
+		mockedMineverseChatAPI.reset();
 	}
 
 	@Test
@@ -274,13 +282,86 @@ public class BlockedPrivateMessageTest {
 	}
 
 	@Test
-	public void bypassPermissionStillRespectsTheReceiversIgnoreList() {
+	public void bypassPermissionForcesMessageThroughTheReceiversIgnoreList() {
 		when(sender.hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION)).thenReturn(true);
 
 		new Message().execute(sender, "vmessage", new String[] { "Target", "hello" });
 
+		verify(target).sendMessage("from hello");
 		verify(sender).sendMessage("to hello");
-		verify(target, never()).sendMessage(anyString());
+	}
+
+	@Test
+	public void bypassPermissionForcesMessageThroughWhenTheReceiverAcceptsMessages() {
+		when(targetMcp.getMessageToggle()).thenReturn(true);
+		when(sender.hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION)).thenReturn(true);
+
+		new Message().execute(sender, "vmessage", new String[] { "Target", "hello" });
+
+		verify(target).sendMessage("from hello");
+		verify(sender).sendMessage("to hello");
+	}
+
+	@Test
+	public void bypassPermissionForcesReplyThroughTheReceiversIgnoreList() {
+		when(sender.hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION)).thenReturn(true);
+
+		new Reply().execute(sender, "reply", new String[] { "hello" });
+
+		verify(target).sendMessage("reply-from hello");
+		verify(sender).sendMessage("reply-to hello");
+	}
+
+	@Test
+	public void bypassPermissionForcesConversationMessageThroughTheReceiversIgnoreList() {
+		when(sender.hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION)).thenReturn(true);
+		when(senderMcp.hasConversation()).thenReturn(true);
+		when(senderMcp.getConversation()).thenReturn(TARGET_UUID);
+		AsyncPlayerChatEvent event = Mockito.mock(AsyncPlayerChatEvent.class);
+		when(event.getPlayer()).thenReturn(sender);
+		when(event.getMessage()).thenReturn("hello");
+		when(event.getRecipients()).thenReturn(Collections.emptySet());
+
+		new ChatListener().handleTrueAsyncPlayerChatEvent(event);
+
+		verify(target).sendMessage("from hello");
+		verify(sender).sendMessage("to hello");
+	}
+
+	@Test
+	public void networkBypassPermissionForcesMessageThroughTheReceiversIgnoreList() throws Exception {
+		when(sender.hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION)).thenReturn(true);
+		when(config.getBoolean("bungeecordmessaging", true)).thenReturn(true);
+		mockedMineverseChat.when(MineverseChat::isConnectedToProxy).thenReturn(true);
+		mockedMineverseChatAPI.when(() -> MineverseChatAPI.getOnlineMineverseChatPlayer(SENDER_UUID)).thenReturn(senderMcp);
+		mockedMineverseChatAPI.when(() -> MineverseChatAPI.getMineverseChatPlayer(SENDER_UUID)).thenReturn(senderMcp);
+		AtomicReference<byte[]> outgoingPacket = new AtomicReference<>();
+		mockedMineverseChat.when(() -> MineverseChat.sendPluginMessage(any(ByteArrayOutputStream.class)))
+				.thenAnswer(invocation -> {
+					outgoingPacket.set(((ByteArrayOutputStream) invocation.getArgument(0)).toByteArray());
+					return null;
+				});
+
+		ByteArrayOutputStream requestBytes = new ByteArrayOutputStream();
+		try (DataOutputStream request = new DataOutputStream(requestBytes)) {
+			request.writeUTF("Message");
+			request.writeUTF("Send");
+			request.writeUTF("sender-server");
+			request.writeUTF("Target");
+			request.writeUTF(SENDER_UUID.toString());
+			request.writeUTF("Sender");
+			request.writeUTF("from");
+			request.writeUTF("to");
+			request.writeUTF("spy");
+			request.writeUTF(" hello");
+		}
+
+		MineverseChat messageHandler = Mockito.mock(MineverseChat.class, Mockito.CALLS_REAL_METHODS);
+		Mockito.doReturn(config).when(messageHandler).getConfig();
+		messageHandler.onPluginMessageReceived(MineverseChat.PLUGIN_MESSAGING_CHANNEL, sender, requestBytes.toByteArray());
+
+		verify(target).sendMessage("from hello");
+		verify(targetMcp).setReplyPlayer(SENDER_UUID);
 	}
 
 	@Test

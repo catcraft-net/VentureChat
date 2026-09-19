@@ -93,8 +93,8 @@ public class ChatListener implements Listener {
 				mcp.setConversation(null);
 			}
 			else {
-				boolean ignored = tp.getIgnores().contains(mcp.getUUID());
 				boolean senderBypassesToggle = mcp.getPlayer().hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION);
+				boolean ignored = tp.getIgnores().contains(mcp.getUUID()) && !senderBypassesToggle;
 				if(!tp.getMessageToggle() && !senderBypassesToggle) {
 					mcp.getPlayer().sendMessage(LocalizedMessage.BLOCKING_MESSAGE.toString()
 							.replace("{player}", tp.getName()));
