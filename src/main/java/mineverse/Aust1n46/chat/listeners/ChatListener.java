@@ -94,7 +94,7 @@ public class ChatListener implements Listener {
 			}
 			else {
 				boolean ignored = tp.getIgnores().contains(mcp.getUUID());
-				if(!ignored && !tp.getMessageToggle()) {
+				if(!tp.getMessageToggle()) {
 					mcp.getPlayer().sendMessage(LocalizedMessage.BLOCKING_MESSAGE.toString()
 							.replace("{player}", tp.getName()));
 					event.setCancelled(true);
@@ -129,6 +129,7 @@ public class ChatListener implements Listener {
 				if(ignored) {
 					mcp.setReplyPlayer(tp.getUUID());
 					mcp.getPlayer().sendMessage(echo);
+					event.setCancelled(true);
 					return;
 				}
 

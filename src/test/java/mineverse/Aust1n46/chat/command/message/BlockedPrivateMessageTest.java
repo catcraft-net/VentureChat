@@ -37,11 +37,12 @@ import mineverse.Aust1n46.chat.localization.Localization;
 import mineverse.Aust1n46.chat.utilities.Format;
 
 /**
- * Regression tests for private messages sent to a player who ignores the sender.
+ * A player who has blocked private messages must never receive them, even when
+ * they are also ignoring the sender.
  */
-public class IgnoredPrivateMessageTest {
-	private static final UUID SENDER_UUID = UUID.fromString("00000000-0000-0000-0000-000000000001");
-	private static final UUID TARGET_UUID = UUID.fromString("00000000-0000-0000-0000-000000000002");
+public class BlockedPrivateMessageTest {
+	private static final UUID SENDER_UUID = UUID.fromString("00000000-0000-0000-0000-00000000000a");
+	private static final UUID TARGET_UUID = UUID.fromString("00000000-0000-0000-0000-00000000000b");
 
 	private static MockedStatic<MineverseChat> mockedMineverseChat;
 	private static MockedStatic<MineverseChatAPI> mockedMineverseChatAPI;
@@ -57,10 +58,8 @@ public class IgnoredPrivateMessageTest {
 
 	private Player sender;
 	private Player target;
-	private Player spy;
 	private MineverseChatPlayer senderMcp;
 	private MineverseChatPlayer targetMcp;
-	private MineverseChatPlayer spyMcp;
 
 	@BeforeClass
 	public static void init() {
@@ -82,10 +81,10 @@ public class IgnoredPrivateMessageTest {
 		when(Bukkit.getPluginManager()).thenReturn(pluginManager);
 		when(pluginManager.isPluginEnabled(anyString())).thenReturn(false);
 
-		mockedPlaceholderAPI.when(() -> PlaceholderAPI.setBracketPlaceholders(any(Player.class), anyString()))
-				.thenAnswer(invocation -> invocation.getArgument(1));
 		mockedFormat.when(() -> Format.FormatStringAll(anyString()))
 				.thenAnswer(invocation -> invocation.getArgument(0));
+		mockedPlaceholderAPI.when(() -> PlaceholderAPI.setBracketPlaceholders(any(Player.class), anyString()))
+				.thenAnswer(invocation -> invocation.getArgument(1));
 	}
 
 	@AfterClass
@@ -102,30 +101,28 @@ public class IgnoredPrivateMessageTest {
 	public void setUp() {
 		sender = Mockito.mock(Player.class);
 		target = Mockito.mock(Player.class);
-		spy = Mockito.mock(Player.class);
 		senderMcp = Mockito.mock(MineverseChatPlayer.class);
 		targetMcp = Mockito.mock(MineverseChatPlayer.class);
-		spyMcp = Mockito.mock(MineverseChatPlayer.class);
 
 		when(senderMcp.getPlayer()).thenReturn(sender);
 		when(senderMcp.getUUID()).thenReturn(SENDER_UUID);
 		when(senderMcp.getName()).thenReturn("Sender");
-		when(sender.canSee(target)).thenReturn(true);
-		when(sender.hasPermission(anyString())).thenReturn(false);
 		when(senderMcp.hasFilter()).thenReturn(false);
+		when(senderMcp.getReplyPlayer()).thenReturn(TARGET_UUID);
+		when(senderMcp.hasReplyPlayer()).thenReturn(true);
+		when(sender.hasPermission(anyString())).thenReturn(false);
+		when(sender.canSee(target)).thenReturn(true);
 
 		when(targetMcp.getPlayer()).thenReturn(target);
 		when(targetMcp.getUUID()).thenReturn(TARGET_UUID);
 		when(targetMcp.getName()).thenReturn("Target");
-		when(targetMcp.getIgnores()).thenReturn(Collections.singleton(SENDER_UUID));
-		when(targetMcp.getMessageToggle()).thenReturn(true);
 		when(targetMcp.isOnline()).thenReturn(true);
-
-		when(spyMcp.getPlayer()).thenReturn(spy);
-		when(spyMcp.getName()).thenReturn("Spy");
-		when(spyMcp.isSpy()).thenReturn(true);
+		// Target blocks private messages and also ignores the sender.
+		when(targetMcp.getMessageToggle()).thenReturn(false);
+		when(targetMcp.getIgnores()).thenReturn(Collections.singleton(SENDER_UUID));
 
 		when(config.getBoolean("bungeecordmessaging", true)).thenReturn(false);
+		when(config.getString("loglevel", "info")).thenReturn("info");
 		when(config.getString("tellformatfrom")).thenReturn("from");
 		when(config.getString("tellformatto")).thenReturn("to");
 		when(config.getString("tellformatspy")).thenReturn("spy");
@@ -133,48 +130,55 @@ public class IgnoredPrivateMessageTest {
 		when(config.getString("replyformatto")).thenReturn("reply-to");
 		when(config.getString("replyformatspy")).thenReturn("reply-spy");
 
-		when(localization.getString("IgnoringMessage")).thenReturn("IGNORING {player}");
-		when(localization.getString("EnterPrivateConversation")).thenReturn("ENTER {player_receiver}");
+		when(localization.getString("BlockingMessage")).thenReturn("BLOCKING {player}");
 
 		mockedMineverseChatAPI.when(() -> MineverseChatAPI.getOnlineMineverseChatPlayer(sender)).thenReturn(senderMcp);
 		mockedMineverseChatAPI.when(() -> MineverseChatAPI.getOnlineMineverseChatPlayer("Target")).thenReturn(targetMcp);
 		mockedMineverseChatAPI.when(() -> MineverseChatAPI.getOnlineMineverseChatPlayer(TARGET_UUID)).thenReturn(targetMcp);
 		mockedMineverseChatAPI.when(() -> MineverseChatAPI.getMineverseChatPlayer(TARGET_UUID)).thenReturn(targetMcp);
 		mockedMineverseChatAPI.when(MineverseChatAPI::getOnlineMineverseChatPlayers)
-				.thenReturn(Arrays.asList(senderMcp, targetMcp, spyMcp));
+				.thenReturn(Arrays.asList(senderMcp, targetMcp));
 	}
 
 	@Test
-	public void messageEchoesSuccessOnlyToSender() {
-		new Message().execute(sender, "msg", new String[] { "Target", "hello" });
+	public void messageCommandReportsBlockingInsteadOfEchoing() {
+		new Message().execute(sender, "vmessage", new String[] { "Target", "hello" });
 
-		verify(sender).sendMessage("to hello");
+		verify(sender).sendMessage("BLOCKING Target");
 		verify(target, never()).sendMessage(anyString());
-		verify(spy, never()).sendMessage(anyString());
-		verify(senderMcp).setReplyPlayer(TARGET_UUID);
 		verify(targetMcp, never()).setReplyPlayer(any(UUID.class));
-		mockedFormat.verify(() -> Format.playMessageSound(targetMcp), never());
 	}
 
 	@Test
-	public void replyEchoesSuccessOnlyToSender() {
-		when(senderMcp.hasReplyPlayer()).thenReturn(true);
-		when(senderMcp.getReplyPlayer()).thenReturn(TARGET_UUID);
-
+	public void replyCommandReportsBlockingInsteadOfEchoing() {
 		new Reply().execute(sender, "reply", new String[] { "hello" });
 
-		verify(sender).sendMessage("reply-to hello");
+		verify(sender).sendMessage("BLOCKING Target");
 		verify(target, never()).sendMessage(anyString());
-		verify(spy, never()).sendMessage(anyString());
 		verify(targetMcp, never()).setReplyPlayer(any(UUID.class));
-		mockedFormat.verify(() -> Format.playMessageSound(targetMcp), never());
 	}
 
 	@Test
-	public void conversationEchoesSuccessOnlyToSender() {
+	public void conversationReportsBlockingAndStaysOutOfPublicChat() {
 		when(senderMcp.hasConversation()).thenReturn(true);
 		when(senderMcp.getConversation()).thenReturn(TARGET_UUID);
+		AsyncPlayerChatEvent event = Mockito.mock(AsyncPlayerChatEvent.class);
+		when(event.getPlayer()).thenReturn(sender);
+		when(event.getMessage()).thenReturn("hello");
+		when(event.getRecipients()).thenReturn(Collections.emptySet());
 
+		new ChatListener().handleTrueAsyncPlayerChatEvent(event);
+
+		verify(sender).sendMessage("BLOCKING Target");
+		verify(event).setCancelled(true);
+		verify(target, never()).sendMessage(anyString());
+	}
+
+	@Test
+	public void ignoredConversationStaysOutOfPublicChat() {
+		when(targetMcp.getMessageToggle()).thenReturn(true);
+		when(senderMcp.hasConversation()).thenReturn(true);
+		when(senderMcp.getConversation()).thenReturn(TARGET_UUID);
 		AsyncPlayerChatEvent event = Mockito.mock(AsyncPlayerChatEvent.class);
 		when(event.getPlayer()).thenReturn(sender);
 		when(event.getMessage()).thenReturn("hello");
@@ -183,28 +187,12 @@ public class IgnoredPrivateMessageTest {
 		new ChatListener().handleTrueAsyncPlayerChatEvent(event);
 
 		verify(sender).sendMessage("to hello");
+		verify(event).setCancelled(true);
 		verify(target, never()).sendMessage(anyString());
-		verify(spy, never()).sendMessage(anyString());
-		verify(senderMcp).setReplyPlayer(TARGET_UUID);
-		verify(targetMcp, never()).setReplyPlayer(any(UUID.class));
-		mockedFormat.verify(() -> Format.playMessageSound(targetMcp), never());
 	}
 
 	@Test
-	public void enteringConversationDoesNotNotifySpies() {
-		when(senderMcp.hasConversation()).thenReturn(false);
-
-		new Message().execute(sender, "msg", new String[] { "Target" });
-
-		verify(senderMcp).setConversation(TARGET_UUID);
-		verify(sender).sendMessage("ENTER Target");
-		verify(target, never()).sendMessage(anyString());
-		verify(spy, never()).sendMessage(anyString());
-	}
-
-	@Test
-	public void networkMessageReturnsSilentEchoWithoutDelivering() throws Exception {
-		when(config.getString("loglevel", "info")).thenReturn("info");
+	public void networkMessageReportsBlockedInsteadOfEchoing() throws Exception {
 		when(config.getBoolean("bungeecordmessaging", true)).thenReturn(true);
 		mockedMineverseChat.when(MineverseChat::isConnectedToProxy).thenReturn(true);
 		AtomicReference<byte[]> outgoingPacket = new AtomicReference<>();
@@ -234,19 +222,14 @@ public class IgnoredPrivateMessageTest {
 
 		try (DataInputStream response = new DataInputStream(new ByteArrayInputStream(outgoingPacket.get()))) {
 			assertEquals("Message", response.readUTF());
-			assertEquals("Echo", response.readUTF());
+			assertEquals("Blocked", response.readUTF());
 			assertEquals("sender-server", response.readUTF());
 			assertEquals("Target", response.readUTF());
-			assertEquals(TARGET_UUID.toString(), response.readUTF());
 			assertEquals(SENDER_UUID.toString(), response.readUTF());
-			assertEquals("Sender", response.readUTF());
-			assertEquals("to hello", response.readUTF());
-			assertEquals("VentureChat:NoSpy", response.readUTF());
 			assertEquals(0, response.available());
 		}
 
 		verify(target, never()).sendMessage(anyString());
 		verify(targetMcp, never()).setReplyPlayer(any(UUID.class));
-		mockedFormat.verify(() -> Format.playMessageSound(targetMcp), never());
 	}
 }

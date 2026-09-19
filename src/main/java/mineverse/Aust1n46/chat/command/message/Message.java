@@ -53,7 +53,7 @@ public class Message extends Command {
 			return true;
 		}
 		boolean ignored = player.getIgnores().contains(mcp.getUUID());
-		if (!ignored && !player.getMessageToggle()) {
+		if (!player.getMessageToggle()) {
 			mcp.getPlayer().sendMessage(LocalizedMessage.BLOCKING_MESSAGE.toString().replace("{player}", player.getName()));
 			return true;
 		}
