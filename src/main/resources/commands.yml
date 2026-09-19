@@ -1,4 +1,4 @@
-Version: 3.3.0
+Version: 3.3.1
 # Restart server after editing this file!!!
 # Restart server after editing this file!!!
 # Restart server after editing this file!!!
@@ -106,7 +106,7 @@ commands:
         aliases: [vchatgui]
         enabled: true
     messagetoggle:
-        aliases: [mtoggle,vmessagetoggle]
+        aliases: [mtoggle,msgtoggle,pmtoggle,pmgtoggle,vmessagetoggle]
         enabled: true
     bungeetoggle:
         aliases: [btoggle,vbungeetoggle]
