@@ -232,4 +232,95 @@ public class BlockedPrivateMessageTest {
 		verify(target, never()).sendMessage(anyString());
 		verify(targetMcp, never()).setReplyPlayer(any(UUID.class));
 	}
+
+	@Test
+	public void bypassPermissionDeliversMessageToABlockedPlayer() {
+		when(targetMcp.getIgnores()).thenReturn(Collections.emptySet());
+		when(sender.hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION)).thenReturn(true);
+
+		new Message().execute(sender, "vmessage", new String[] { "Target", "hello" });
+
+		verify(target).sendMessage("from hello");
+		verify(sender).sendMessage("to hello");
+		verify(targetMcp).setReplyPlayer(SENDER_UUID);
+	}
+
+	@Test
+	public void bypassPermissionDeliversReplyToABlockedPlayer() {
+		when(targetMcp.getIgnores()).thenReturn(Collections.emptySet());
+		when(sender.hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION)).thenReturn(true);
+
+		new Reply().execute(sender, "reply", new String[] { "hello" });
+
+		verify(target).sendMessage("reply-from hello");
+		verify(sender).sendMessage("reply-to hello");
+	}
+
+	@Test
+	public void bypassPermissionDeliversConversationMessages() {
+		when(targetMcp.getIgnores()).thenReturn(Collections.emptySet());
+		when(sender.hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION)).thenReturn(true);
+		when(senderMcp.hasConversation()).thenReturn(true);
+		when(senderMcp.getConversation()).thenReturn(TARGET_UUID);
+		AsyncPlayerChatEvent event = Mockito.mock(AsyncPlayerChatEvent.class);
+		when(event.getPlayer()).thenReturn(sender);
+		when(event.getMessage()).thenReturn("hello");
+		when(event.getRecipients()).thenReturn(Collections.emptySet());
+
+		new ChatListener().handleTrueAsyncPlayerChatEvent(event);
+
+		verify(target).sendMessage("from hello");
+		verify(sender).sendMessage("to hello");
+	}
+
+	@Test
+	public void bypassPermissionStillRespectsTheReceiversIgnoreList() {
+		when(sender.hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION)).thenReturn(true);
+
+		new Message().execute(sender, "vmessage", new String[] { "Target", "hello" });
+
+		verify(sender).sendMessage("to hello");
+		verify(target, never()).sendMessage(anyString());
+	}
+
+	@Test
+	public void networkBypassPermissionDeliversToABlockedPlayer() throws Exception {
+		when(targetMcp.getIgnores()).thenReturn(Collections.emptySet());
+		when(sender.hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION)).thenReturn(true);
+		when(config.getBoolean("bungeecordmessaging", true)).thenReturn(true);
+		mockedMineverseChat.when(MineverseChat::isConnectedToProxy).thenReturn(true);
+		mockedMineverseChatAPI.when(() -> MineverseChatAPI.getOnlineMineverseChatPlayer(SENDER_UUID)).thenReturn(senderMcp);
+		mockedMineverseChatAPI.when(() -> MineverseChatAPI.getMineverseChatPlayer(SENDER_UUID)).thenReturn(senderMcp);
+		AtomicReference<byte[]> outgoingPacket = new AtomicReference<>();
+		mockedMineverseChat.when(() -> MineverseChat.sendPluginMessage(any(ByteArrayOutputStream.class)))
+				.thenAnswer(invocation -> {
+					outgoingPacket.set(((ByteArrayOutputStream) invocation.getArgument(0)).toByteArray());
+					return null;
+				});
+
+		ByteArrayOutputStream requestBytes = new ByteArrayOutputStream();
+		try (DataOutputStream request = new DataOutputStream(requestBytes)) {
+			request.writeUTF("Message");
+			request.writeUTF("Send");
+			request.writeUTF("sender-server");
+			request.writeUTF("Target");
+			request.writeUTF(SENDER_UUID.toString());
+			request.writeUTF("Sender");
+			request.writeUTF("from");
+			request.writeUTF("to");
+			request.writeUTF("spy");
+			request.writeUTF(" hello");
+		}
+
+		MineverseChat messageHandler = Mockito.mock(MineverseChat.class, Mockito.CALLS_REAL_METHODS);
+		Mockito.doReturn(config).when(messageHandler).getConfig();
+		messageHandler.onPluginMessageReceived(MineverseChat.PLUGIN_MESSAGING_CHANNEL, sender, requestBytes.toByteArray());
+
+		verify(target).sendMessage("from hello");
+		verify(targetMcp).setReplyPlayer(SENDER_UUID);
+		try (DataInputStream response = new DataInputStream(new ByteArrayInputStream(outgoingPacket.get()))) {
+			assertEquals("Message", response.readUTF());
+			assertEquals("Echo", response.readUTF());
+		}
+	}
 }

@@ -59,6 +59,9 @@ import net.milkbowl.vault.permission.Permission;
 public class MineverseChat extends JavaPlugin implements PluginMessageListener {
 	// Plugin Messaging Channel
 	public static final String PLUGIN_MESSAGING_CHANNEL = "venturechat:data";
+
+	// Lets the sender reach a player who has blocked private messages
+	public static final String MESSAGETOGGLE_BYPASS_PERMISSION = "venturechat.messagetoggle.bypass";
 	
 	// Event constants
 	public static final boolean ASYNC = true;
@@ -1011,7 +1014,10 @@ public class MineverseChat extends JavaPlugin implements PluginMessageListener {
 						sendPluginMessage(stream);
 						return;
 					}
-					if(!p.getMessageToggle()) {
+					MineverseChatPlayer onlineSender = MineverseChatAPI.getOnlineMineverseChatPlayer(sender);
+					boolean senderBypassesMessageToggle = onlineSender != null && onlineSender.getPlayer() != null
+							&& onlineSender.getPlayer().hasPermission(MESSAGETOGGLE_BYPASS_PERMISSION);
+					if(!p.getMessageToggle() && !senderBypassesMessageToggle) {
 						out.writeUTF("Message");
 						out.writeUTF("Blocked");
 						out.writeUTF(server);

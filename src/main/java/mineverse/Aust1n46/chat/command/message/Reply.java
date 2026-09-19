@@ -45,7 +45,8 @@ public class Reply extends Command {
 					return true;
 				}
 				boolean ignored = player.getIgnores().contains(mcp.getUUID());
-				if (!player.getMessageToggle()) {
+				boolean senderBypassesToggle = mcp.getPlayer().hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION);
+				if (!player.getMessageToggle() && !senderBypassesToggle) {
 					mcp.getPlayer().sendMessage(LocalizedMessage.BLOCKING_MESSAGE.toString().replace("{player}", player.getName()));
 					return true;
 				}
