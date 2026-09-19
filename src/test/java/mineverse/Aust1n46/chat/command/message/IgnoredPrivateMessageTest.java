@@ -118,7 +118,7 @@ public class IgnoredPrivateMessageTest {
 		when(targetMcp.getUUID()).thenReturn(TARGET_UUID);
 		when(targetMcp.getName()).thenReturn("Target");
 		when(targetMcp.getIgnores()).thenReturn(Collections.singleton(SENDER_UUID));
-		when(targetMcp.getMessageToggle()).thenReturn(false);
+		when(targetMcp.getMessageToggle()).thenReturn(true);
 		when(targetMcp.isOnline()).thenReturn(true);
 
 		when(spyMcp.getPlayer()).thenReturn(spy);

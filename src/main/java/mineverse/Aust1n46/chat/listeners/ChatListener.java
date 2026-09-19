@@ -93,8 +93,9 @@ public class ChatListener implements Listener {
 				mcp.setConversation(null);
 			}
 			else {
-				boolean ignored = tp.getIgnores().contains(mcp.getUUID());
-				if(!ignored && !tp.getMessageToggle()) {
+				boolean senderBypassesToggle = mcp.getPlayer().hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION);
+				boolean ignored = tp.getIgnores().contains(mcp.getUUID()) && !senderBypassesToggle;
+				if(!tp.getMessageToggle() && !senderBypassesToggle) {
 					mcp.getPlayer().sendMessage(LocalizedMessage.BLOCKING_MESSAGE.toString()
 							.replace("{player}", tp.getName()));
 					event.setCancelled(true);
@@ -129,6 +130,7 @@ public class ChatListener implements Listener {
 				if(ignored) {
 					mcp.setReplyPlayer(tp.getUUID());
 					mcp.getPlayer().sendMessage(echo);
+					event.setCancelled(true);
 					return;
 				}
 

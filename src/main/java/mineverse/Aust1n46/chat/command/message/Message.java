@@ -52,8 +52,9 @@ public class Message extends Command {
 			mcp.getPlayer().sendMessage(LocalizedMessage.PLAYER_OFFLINE.toString().replace("{args}", args[0]));
 			return true;
 		}
-		boolean ignored = player.getIgnores().contains(mcp.getUUID());
-		if (!ignored && !player.getMessageToggle()) {
+		boolean senderBypassesToggle = mcp.getPlayer().hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION);
+		boolean ignored = player.getIgnores().contains(mcp.getUUID()) && !senderBypassesToggle;
+		if (!player.getMessageToggle() && !senderBypassesToggle) {
 			mcp.getPlayer().sendMessage(LocalizedMessage.BLOCKING_MESSAGE.toString().replace("{player}", player.getName()));
 			return true;
 		}

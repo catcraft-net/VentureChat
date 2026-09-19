@@ -59,6 +59,10 @@ import net.milkbowl.vault.permission.Permission;
 public class MineverseChat extends JavaPlugin implements PluginMessageListener {
 	// Plugin Messaging Channel
 	public static final String PLUGIN_MESSAGING_CHANNEL = "venturechat:data";
+
+	// Lets the sender force private messages through, even to a player who has
+	// blocked private messages or is ignoring them
+	public static final String MESSAGETOGGLE_BYPASS_PERMISSION = "venturechat.messagetoggle.bypass";
 	
 	// Event constants
 	public static final boolean ASYNC = true;
@@ -1011,7 +1015,19 @@ public class MineverseChat extends JavaPlugin implements PluginMessageListener {
 						sendPluginMessage(stream);
 						return;
 					}
-					if(p.getIgnores().contains(sender)) {
+					MineverseChatPlayer onlineSender = MineverseChatAPI.getOnlineMineverseChatPlayer(sender);
+					boolean senderBypassesMessageToggle = onlineSender != null && onlineSender.getPlayer() != null
+							&& onlineSender.getPlayer().hasPermission(MESSAGETOGGLE_BYPASS_PERMISSION);
+					if(!p.getMessageToggle() && !senderBypassesMessageToggle) {
+						out.writeUTF("Message");
+						out.writeUTF("Blocked");
+						out.writeUTF(server);
+						out.writeUTF(receiver);
+						out.writeUTF(sender.toString());
+						sendPluginMessage(stream);
+						return;
+					}
+					if(p.getIgnores().contains(sender) && !senderBypassesMessageToggle) {
 						out.writeUTF("Message");
 						out.writeUTF("Echo");
 						out.writeUTF(server);
@@ -1021,15 +1037,6 @@ public class MineverseChat extends JavaPlugin implements PluginMessageListener {
 						out.writeUTF(sName);
 						out.writeUTF(Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(p.getPlayer(), echo.replaceAll("receiver_", ""))) + msg);
 						out.writeUTF("VentureChat:NoSpy");
-						sendPluginMessage(stream);
-						return;
-					}
-					if(!p.getMessageToggle()) {
-						out.writeUTF("Message");
-						out.writeUTF("Blocked");
-						out.writeUTF(server);
-						out.writeUTF(receiver);
-						out.writeUTF(sender.toString());
 						sendPluginMessage(stream);
 						return;
 					}

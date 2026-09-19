@@ -199,8 +199,11 @@ public class PlayerData {
         if (mcp == null || UUIDFetcher.shouldSkipOfflineUUID(mcp.getUUID()) || (!mcp.isOnline() && !mcp.wasModified())) {
             return;
         }
+        File playerDataFile = new File(PLAYER_DATA_DIRECTORY_PATH, mcp.getUUID() + ".yml");
+        if (!shouldStorePlayerData(mcp, playerDataFile.exists())) {
+            return;
+        }
         try {
-            File playerDataFile = new File(PLAYER_DATA_DIRECTORY_PATH, mcp.getUUID() + ".yml");
             FileConfiguration playerDataFileYamlConfiguration = YamlConfiguration.loadConfiguration(playerDataFile);
             if (!playerDataFile.exists()) {
                 playerDataFileYamlConfiguration.save(playerDataFile);
@@ -260,5 +263,69 @@ public class PlayerData {
         for (MineverseChatPlayer p : MineverseChatAPI.getMineverseChatPlayers()) {
             savePlayerData(p);
         }
+    }
+
+    /**
+     * Whether a player's data file is worth writing.
+     * <p>
+     * A player who has not changed anything still holds exactly the values a brand
+     * new player starts with, so a file for them would contain nothing but defaults.
+     * Skipping those keeps the PlayerData folder small, which matters because every
+     * file in it is parsed again on startup. Existing files are always written,
+     * since the player may be changing settings back to their defaults.
+     *
+     * @param mcp
+     *            the player being saved
+     * @param fileExists
+     *            whether the player already has a data file
+     * @return true when the file should be written
+     */
+    static boolean shouldStorePlayerData(MineverseChatPlayer mcp, boolean fileExists) {
+        return fileExists || !isDefaultPlayerState(mcp);
+    }
+
+    /**
+     * Whether every stored setting is still on the value a new player starts with.
+     *
+     * @param mcp
+     *            the player to inspect
+     * @return true when the player has not customised anything
+     */
+    static boolean isDefaultPlayerState(MineverseChatPlayer mcp) {
+        if (mcp == null || mcp.getCurrentChannel() == null || mcp.getIgnores() == null || mcp.getMutes() == null
+                || mcp.getBlockedCommands() == null || mcp.getListening() == null
+                || ChatChannel.getDefaultChannel() == null) {
+            return false;
+        }
+        return mcp.getCurrentChannel().getName().equals(ChatChannel.getDefaultChannel().getName())
+                && mcp.getIgnores().isEmpty()
+                && mcp.getMutes().isEmpty()
+                && mcp.getBlockedCommands().isEmpty()
+                && !mcp.isHost()
+                && !mcp.hasParty()
+                && mcp.hasFilter()
+                && mcp.hasNotifications()
+                && !mcp.isSpy()
+                && !mcp.hasCommandSpy()
+                && !mcp.getRangedSpy()
+                && mcp.getMessageToggle()
+                && mcp.getBungeeToggle()
+                && listensOnlyToAutojoinChannels(mcp);
+    }
+
+    /**
+     * Whether the player is only listening to the channels they were placed in
+     * automatically, rather than having joined any extra ones.
+     *
+     * @param mcp
+     *            the player to inspect
+     * @return true when every channel they listen to is an autojoin channel
+     */
+    private static boolean listensOnlyToAutojoinChannels(MineverseChatPlayer mcp) {
+        Set<String> autojoinChannels = new HashSet<String>();
+        for (ChatChannel channel : ChatChannel.getAutojoinList()) {
+            autojoinChannels.add(channel.getName());
+        }
+        return autojoinChannels.containsAll(mcp.getListening());
     }
 }
