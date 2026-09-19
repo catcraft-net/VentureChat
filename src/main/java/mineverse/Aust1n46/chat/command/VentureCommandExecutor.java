@@ -60,7 +60,7 @@ import mineverse.Aust1n46.chat.utilities.Format;
  * Class that initializes and executes the plugin's commands.
  */
 public class VentureCommandExecutor {
-	private static final String VERSION = "3.3.1";
+	private static final String VERSION = "3.3.0";
 	private static final Map<String, Command> commands = new HashMap<>();
 	private static final MineverseChat plugin = MineverseChat.getInstance();
 
