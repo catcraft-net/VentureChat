@@ -9,7 +9,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import mineverse.Aust1n46.chat.MineverseChat;
-import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Sound;
@@ -124,12 +123,12 @@ public class Format {
 							hoverText = escapeJsonChars(Format.FormatStringAll(
 									PlaceholderAPI.setBracketPlaceholders(icp.getPlayer(), hover.substring(0, hover.length() - 1))));
 						} else {
-							hoverText = StringUtils.EMPTY;
+							hoverText = "";
 						}
 						final ClickAction clickAction = jsonAttribute.getClickAction();
 						final String actionJson;
 						if (clickAction == ClickAction.NONE) {
-							actionJson = StringUtils.EMPTY;
+							actionJson = "";
 						} else {
 							final String clickText = escapeJsonChars(Format.FormatStringAll(
 									PlaceholderAPI.setBracketPlaceholders(icp.getPlayer(), jsonAttribute.getClickText())));
@@ -138,7 +137,7 @@ public class Format {
 						}
 						final String hoverJson;
 						if (hoverText.isEmpty()) {
-							hoverJson = StringUtils.EMPTY;
+							hoverJson = "";
 						} else {
 							hoverJson = ",\"hover_event\":{\"action\":\"show_text\",\"value\":{\"text\":\"\",\"extra\":["
 									+ convertToJsonColors(hoverText) + "]}}";

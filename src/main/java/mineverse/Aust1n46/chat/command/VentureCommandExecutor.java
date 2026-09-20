@@ -17,7 +17,6 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import mineverse.Aust1n46.chat.MineverseChat;
 import mineverse.Aust1n46.chat.channel.ChatChannel;
 import mineverse.Aust1n46.chat.command.chat.Broadcast;
-import mineverse.Aust1n46.chat.command.chat.BungeeToggle;
 import mineverse.Aust1n46.chat.command.chat.Channel;
 import mineverse.Aust1n46.chat.command.chat.Channelinfo;
 import mineverse.Aust1n46.chat.command.chat.Chatinfo;
@@ -129,7 +128,6 @@ public class VentureCommandExecutor {
 		commands.put("spy", new Spy());
 		commands.put("venturechatgui", new VentureChatGui());
 		commands.put("messagetoggle", new MessageToggle());
-		commands.put("bungeetoggle", new BungeeToggle());
 		commands.put("mute", new Mute());
 		commands.put("muteall", new Muteall());
 		commands.put("unmute", new Unmute());

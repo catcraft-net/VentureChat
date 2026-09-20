@@ -83,21 +83,13 @@ mysql:
 # Severe: Only show severe messages
 loglevel: info
 
-# saveinterval is in minutes
-saveinterval: 30
-
 # If you're running a "cracked" server, player data might not be stored properly, and thus, you are on your own.
 # If you run your server in offline mode, you might have to reset your player data when switching to online mode!
-# If you see this warning by accident and you are using BungeeCord, make sure you have properly setup IP Forwarding.
-# https://www.spigotmc.org/wiki/bungeecord-ip-forwarding/
 # No player data will be saved in offline mode unless you set this acknowledgement to 'true'
 offline_server_acknowledgement: false
 
 # The time in seconds between each check to remove timed mutes
 unmuteinterval: 60
-
-# Enables or disabled BungeeCord messaging
-bungeecordmessaging: false
 
 # Sound for message notification
 # Enter 'None' to disable the sound
@@ -256,19 +248,16 @@ alias:
   
 # Enables the creation of special Towny channels: Town and Nation
 # To create these channels, simply name two channels below "Town" and "Nation"
-# Bungeecord must be set to false for these channels! 
 enable_towny_channel: false
 
 # Enables the creation of a special faction only channel using the Factions plugin
 # To create this channel, simply name a channel below "Faction"
-# Bungeecord must be set to false for this channel!
 # WARNING: May not work for all versions of Factions!
 enable_factions_channel: false
 
 # color = [channel] color
 # chatcolor = text color
 # cooldown is in seconds
-# bungeecord overrides distance
 # channel permissions are configurable
 # channels can be changed, and new channels can be created
 # Permissions automatically include "venturechat." 
@@ -299,7 +288,6 @@ channels:
     default: true
     distance: 0
     cooldown: 0
-    bungeecord: false
     alias: g
     permissions: None
     speak_permissions: None
@@ -314,7 +302,6 @@ channels:
     default: false
     distance: 0
     cooldown: 3
-    bungeecord: true
     alias: be
     permissions: None
     speak_permissions: None
@@ -329,7 +316,6 @@ channels:
     default: false
     distance: 0
     cooldown: 0
-    bungeecord: true
     alias: announce
     permissions: None
     speak_permissions: announcement
@@ -344,7 +330,6 @@ channels:
     default: false
     distance: 0
     cooldown: 0
-    bungeecord: false
     alias: st
     permissions: staffchannel
     speak_permissions: None
@@ -359,7 +344,6 @@ channels:
     default: false
     distance: 0
     cooldown: 0
-    bungeecord: false
     alias: d
     permissions: donatorchannel
     speak_permissions: None
@@ -374,7 +358,6 @@ channels:
     default: false
     distance: 0
     cooldown: 0
-    bungeecord: false
     alias: h
     permissions: None
     speak_permissions: None
@@ -389,7 +372,6 @@ channels:
     default: false
     distance: 0
     cooldown: 0
-    bungeecord: false
     alias: t
     permissions: None
     speak_permissions: None
@@ -404,7 +386,6 @@ channels:
     default: false
     distance: 230
     cooldown: 0
-    bungeecord: false
     alias: l
     permissions: None
     speak_permissions: None

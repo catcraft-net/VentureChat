@@ -2,9 +2,6 @@ package mineverse.Aust1n46.chat.command.chat;
 
 import static mineverse.Aust1n46.chat.MineverseChat.LINE_LENGTH;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
-
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
@@ -43,23 +40,6 @@ public class Chwho extends Command {
 							mcp.getPlayer().sendMessage(LocalizedMessage.CHANNEL_NO_PERMISSION_VIEW.toString());
 							return true;
 						}
-					}
-
-					if (channel.getBungee() && sender instanceof Player) {
-						MineverseChatPlayer mcp = MineverseChatAPI.getOnlineMineverseChatPlayer((Player) sender);
-						ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
-						DataOutputStream out = new DataOutputStream(byteOutStream);
-						try {
-							out.writeUTF("Chwho");
-							out.writeUTF("Get");
-							out.writeUTF(mcp.getUUID().toString());
-							out.writeUTF(channel.getName());
-							mcp.getPlayer().sendPluginMessage(plugin, MineverseChat.PLUGIN_MESSAGING_CHANNEL, byteOutStream.toByteArray());
-							out.close();
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-						return true;
 					}
 
 					PluginManager pluginManager = plugin.getServer().getPluginManager();

@@ -26,15 +26,8 @@ public class Unmuteall extends Command {
 				sender.sendMessage(LocalizedMessage.PLAYER_OFFLINE.toString().replace("{args}", args[0]));
 				return true;
 			}
-			boolean bungee = false;
 			for (ChatChannel channel : ChatChannel.getChatChannels()) {
 				player.removeMute(channel.getName());
-				if (channel.getBungee()) {
-					bungee = true;
-				}
-			}
-			if (bungee) {
-				MineverseChat.synchronize(player, true);
 			}
 			sender.sendMessage(LocalizedMessage.UNMUTE_PLAYER_ALL_SENDER.toString().replace("{player}", player.getName()));
 			if (player.isOnline()) {

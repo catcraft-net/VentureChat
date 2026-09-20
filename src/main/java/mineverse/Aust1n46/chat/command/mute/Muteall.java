@@ -36,17 +36,10 @@ public class Muteall extends Command {
 				reason = Format.FormatStringAll(reasonBuilder.toString().trim());
 			}
 			if (reason.isEmpty()) {
-				boolean bungee = false;
 				for (ChatChannel channel : ChatChannel.getChatChannels()) {
 					if (channel.isMutable()) {
 						player.addMute(channel.getName());
-						if (channel.getBungee()) {
-							bungee = true;
-						}
 					}
-				}
-				if (bungee) {
-					MineverseChat.synchronize(player, true);
 				}
 				sender.sendMessage(LocalizedMessage.MUTE_PLAYER_ALL_SENDER.toString().replace("{player}", player.getName()));
 				if (player.isOnline()) {
@@ -55,17 +48,10 @@ public class Muteall extends Command {
 					player.setModified(true);
 				return true;
 			} else {
-				boolean bungee = false;
 				for (ChatChannel channel : ChatChannel.getChatChannels()) {
 					if (channel.isMutable()) {
 						player.addMute(channel.getName(), reason);
-						if (channel.getBungee()) {
-							bungee = true;
-						}
 					}
-				}
-				if (bungee) {
-					MineverseChat.synchronize(player, true);
 				}
 				sender.sendMessage(LocalizedMessage.MUTE_PLAYER_ALL_SENDER_REASON.toString().replace("{player}", player.getName()).replace("{reason}", reason));
 				if (player.isOnline()) {

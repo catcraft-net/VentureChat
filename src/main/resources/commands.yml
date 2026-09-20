@@ -108,9 +108,6 @@ commands:
     messagetoggle:
         aliases: [mtoggle,msgtoggle,pmtoggle,pmgtoggle,vmessagetoggle]
         enabled: true
-    bungeetoggle:
-        aliases: [btoggle,vbungeetoggle]
-        enabled: true
     config:
         aliases: [vconfig]
         enabled: false

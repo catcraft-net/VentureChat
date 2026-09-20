@@ -4,17 +4,21 @@ Read before making any changes or pull requests!
 
 ### What is this repository for?
 
-VentureChat Spigot plugin Repo
+VentureChat Paper plugin repository.
 
 ### How do I get set up?
 
 Full setup and dependency guide is available here on SpigotMC: https://www.spigotmc.org/resources/venturechat.771/
 
-In short, Install `Vault` (and a compatable permission system), `ProtocolLib`, and `PlaceholderAPI` (`Player` and `Vault` extensions optional).
+In short, install `Vault` (and a compatible permission system), `ProtocolLib`, and `PlaceholderAPI` (`Player` and `Vault` extensions optional).
 
-To build, simply run `mvn`.
+Version 4.0 targets Paper 26.2 and is built with Java 25. BungeeCord and Velocity plugin modes are no longer included.
 
-Requires Java 8.
+Player settings are stored in `venturechat.db`. On the first 4.0 startup, existing `Players.yml` and `PlayerData/*.yml` files are placed in a verified ZIP backup and migrated automatically. The original loose files are removed only after both the backup and the new database pass verification. If migration cannot complete, VentureChat keeps the originals and safely falls back to them.
+
+Player records are loaded one at a time during asynchronous pre-login. Changed records are queued to one background storage worker while the server is running, and shutdown waits at most 10 seconds before writing any remaining changes to a recovery journal.
+
+To build and run the unit tests, run `mvn test`. The 50,000-player storage benchmark is opt-in with `mvn -Dventurechat.benchmark=true -Dtest=PlayerStorageBenchmarkTest test`.
 
 ### Contribution guidelines
 

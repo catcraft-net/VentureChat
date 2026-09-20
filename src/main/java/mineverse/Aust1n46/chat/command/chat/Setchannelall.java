@@ -26,7 +26,6 @@ public class Setchannelall extends Command {
 				sender.sendMessage(LocalizedMessage.PLAYER_OFFLINE.toString().replace("{args}", args[0]));
 				return true;
 			}
-			boolean isThereABungeeChannel = false;
 			for (ChatChannel channel : ChatChannel.getChatChannels()) {
 				if (channel.hasPermission()) {
 					if (!player.isOnline()) {
@@ -41,18 +40,12 @@ public class Setchannelall extends Command {
 				} else {
 					player.addListening(channel.getName());
 				}
-				if (channel.getBungee()) {
-					isThereABungeeChannel = true;
-				}
 			}
 			sender.sendMessage(LocalizedMessage.SET_CHANNEL_ALL_SENDER.toString().replace("{player}", player.getName()));
 			if (player.isOnline())
 				player.getPlayer().sendMessage(LocalizedMessage.SET_CHANNEL_ALL_PLAYER.toString());
 			else
 				player.setModified(true);
-			if (isThereABungeeChannel) {
-				MineverseChat.synchronize(player, true);
-			}
 			return true;
 		}
 		sender.sendMessage(LocalizedMessage.COMMAND_NO_PERMISSION.toString());

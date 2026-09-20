@@ -1,11 +1,10 @@
 package mineverse.Aust1n46.chat.command.chat;
 
-import java.util.UUID;
+import java.util.HashSet;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 
 import mineverse.Aust1n46.chat.MineverseChat;
 import mineverse.Aust1n46.chat.api.MineverseChatAPI;
@@ -24,31 +23,23 @@ public class Chatreload extends Command {
 	@Override
 	public boolean execute(CommandSender sender, String command, String[] args) {
 		if (sender.hasPermission("venturechat.reload")) {
-			PlayerData.savePlayerData();
-			MineverseChatAPI.clearMineverseChatPlayerMap();
-			MineverseChatAPI.clearNameMap();
-			MineverseChatAPI.clearOnlineMineverseChatPlayerMap();
-
+			PlayerData.flushDirtyPlayers();
 			plugin.reloadConfig();
 			MineverseChat.initializeConfigReaders();
-
-			PlayerData.loadLegacyPlayerData();
-			PlayerData.loadPlayerData();
-			for (Player p : plugin.getServer().getOnlinePlayers()) {
-				MineverseChatPlayer mcp = MineverseChatAPI.getMineverseChatPlayer(p);
-				if (mcp == null) {
-					Bukkit.getConsoleSender()
-							.sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - Could not find player data post reload for currently online player: " + p.getName()));
-					Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - There could be an issue with your player data saving."));
-					String name = p.getName();
-					UUID uuid = p.getUniqueId();
-					mcp = new MineverseChatPlayer(uuid, name);
+			for (MineverseChatPlayer mcp : MineverseChatAPI.getOnlineMineverseChatPlayers()) {
+				String currentName = mcp.getCurrentChannel().getName();
+				mcp.setCurrentChannel(mineverse.Aust1n46.chat.channel.ChatChannel.isChannel(currentName)
+						? mineverse.Aust1n46.chat.channel.ChatChannel.getChannel(currentName)
+						: mineverse.Aust1n46.chat.channel.ChatChannel.getDefaultChannel());
+				for (String channel : new HashSet<>(mcp.getListening())) {
+					if (!mineverse.Aust1n46.chat.channel.ChatChannel.isChannel(channel)) {
+						mcp.removeListening(channel);
+					}
 				}
-				mcp.setOnline(true);
-				mcp.setHasPlayed(false);
+				if (mcp.getListening().isEmpty()) {
+					mcp.addListening(mineverse.Aust1n46.chat.channel.ChatChannel.getDefaultChannel().getName());
+				}
 				mcp.setJsonFormat();
-				MineverseChatAPI.addMineverseChatOnlinePlayerToMap(mcp);
-				MineverseChatAPI.addNameToMap(mcp);
 			}
 
 			Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Config reloaded"));

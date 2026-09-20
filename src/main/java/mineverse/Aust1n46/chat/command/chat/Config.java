@@ -446,52 +446,6 @@ public class Config extends Command {
 					}
 					break;
 				}
-				case "savesenderdata": {
-					try {
-						switch (args[1]) {
-						case "true": {
-							plugin.getConfig().set("savesenderdata", true);
-							sender.sendMessage(ChatColor.GREEN + "saveplayerdata: has been set to true");
-							plugin.saveConfig();
-							plugin.reloadConfig();
-							break;
-						}
-						case "false": {
-							plugin.getConfig().set("saveplayerdata", false);
-							sender.sendMessage(ChatColor.GREEN + "saveplayerdata: has been set to false");
-							plugin.saveConfig();
-							plugin.reloadConfig();
-							break;
-						}
-						default: {
-							sender.sendMessage(ChatColor.RED + "Invalid arguments, /config saveplayerdata [true/false]");
-							break;
-						}
-						}
-					} catch (Exception e) {
-						sender.sendMessage(ChatColor.GREEN + "saveplayerdata: " + plugin.getConfig().getBoolean("saveplayerdata"));
-					}
-					break;
-				}
-				case "saveinterval": {
-					try {
-						if (Integer.parseInt(args[1]) >= 0) {
-							plugin.getConfig().set("saveinterval", Integer.parseInt(args[1]));
-							sender.sendMessage(ChatColor.GREEN + "saveinterval: has been set to " + args[1]);
-							plugin.saveConfig();
-							plugin.reloadConfig();
-							break;
-						}
-						sender.sendMessage(ChatColor.RED + "Invalid saveinterval, /config saveinterval [saveinterval]");
-						break;
-					} catch (NumberFormatException e) {
-						sender.sendMessage(ChatColor.RED + "Invalid saveinterval, /config saveinterval [saveinterval]");
-						break;
-					} catch (Exception e) {
-						sender.sendMessage(ChatColor.GREEN + "saveinterval: " + plugin.getConfig().getInt("saveinterval"));
-						break;
-					}
-				}
 				case "tellcolor": {
 					try {
 						if (Format.isValidColor(args[1])) {
@@ -1031,38 +985,6 @@ public class Config extends Command {
 										break;
 									}
 								}
-								case "bungeecord": {
-									try {
-										switch (args[3]) {
-										case "true": {
-											plugin.getConfig().getConfigurationSection("channels." + args[1]).set("bungeecord", true);
-											sender.sendMessage(ChatColor.GREEN + "bungeecord: has been set to true");
-											plugin.saveConfig();
-											plugin.reloadConfig();
-											Bukkit.getPluginManager().disablePlugin(plugin);
-											Bukkit.getPluginManager().enablePlugin(plugin);
-											break;
-										}
-										case "false": {
-											plugin.getConfig().getConfigurationSection("channels." + args[1]).set("bungeecord", false);
-											sender.sendMessage(ChatColor.GREEN + "bungeecord: has been set to false");
-											plugin.saveConfig();
-											plugin.reloadConfig();
-											Bukkit.getPluginManager().disablePlugin(plugin);
-											Bukkit.getPluginManager().enablePlugin(plugin);
-											break;
-										}
-										default: {
-											sender.sendMessage(ChatColor.RED + "Invalid arguments, /config channels [channel] bungeecord [true/false]");
-											break;
-										}
-										}
-									} catch (Exception e) {
-										sender.sendMessage(
-												ChatColor.GREEN + "bungeecord: " + plugin.getConfig().getConfigurationSection("channels." + args[1]).getBoolean("bungeecord"));
-									}
-									break;
-								}
 								case "format": {
 									try {
 										String format = args[3] + " ";
@@ -1085,13 +1007,13 @@ public class Config extends Command {
 								}
 								default: {
 									sender.sendMessage(ChatColor.RED + "Invalid arguments, /config channels " + args[1]
-											+ " [color, chatcolor, mutable, alias, default, autojoin, distance, cooldown, bungeecord, format]");
+											+ " [color, chatcolor, mutable, alias, default, autojoin, distance, cooldown, format]");
 									break;
 								}
 								}
 							} catch (Exception e) {
 								sender.sendMessage(ChatColor.RED + "Invalid arguments, /config channels " + args[1]
-										+ " [color, chatcolor, mutable, alias, default, autojoin, distance, cooldown, bungeecord, format]");
+									+ " [color, chatcolor, mutable, alias, default, autojoin, distance, cooldown, format]");
 							}
 							break;
 						}
@@ -1111,7 +1033,6 @@ public class Config extends Command {
 									plugin.getConfig().getConfigurationSection("channels." + args[2]).set("autojoin", true);
 									plugin.getConfig().getConfigurationSection("channels." + args[2]).set("distance", 0.0);
 									plugin.getConfig().getConfigurationSection("channels." + args[2]).set("cooldown", 0);
-									plugin.getConfig().getConfigurationSection("channels." + args[2]).set("bungeecord", false);
 									plugin.getConfig().getConfigurationSection("channels." + args[2]).set("servername", false);
 									plugin.getConfig().getConfigurationSection("channels." + args[2]).set("format", "Default");
 									plugin.saveConfig();
@@ -1161,8 +1082,6 @@ public class Config extends Command {
 					sender.sendMessage(ChatColor.GREEN + "/config mysql [enabled, user, port, password, host, database]");
 					sender.sendMessage(ChatColor.GREEN + "/config pluginname [pluginname]");
 					sender.sendMessage(ChatColor.GREEN + "/config loglevel [info, debug, warning, error]");
-					sender.sendMessage(ChatColor.GREEN + "/config saveplayerdata [true/false]");
-					sender.sendMessage(ChatColor.GREEN + "/config saveinterval [saveinterval]");
 					sender.sendMessage(ChatColor.GREEN + "/config tellcolor [color]");
 					sender.sendMessage(ChatColor.GREEN + "/config vanishsupport [true/false]");
 					sender.sendMessage(ChatColor.GREEN + "/config tellformatto [format]");
@@ -1176,7 +1095,7 @@ public class Config extends Command {
 					sender.sendMessage(ChatColor.GREEN + "/config formatcleaner [true/false]");
 					sender.sendMessage(ChatColor.GREEN + "/config broadcast [color, permissions, displaytag]");
 					sender.sendMessage(ChatColor.GREEN
-							+ "/config channels [channel] [chatcolor, mutable, permissions, alias, default, autojoin, distance, cooldown, bungeecord, format, create , delete]");
+							+ "/config channels [channel] [chatcolor, mutable, permissions, alias, default, autojoin, distance, cooldown, format, create , delete]");
 					sender.sendMessage(ChatColor.GREEN + "/config help");
 					break;
 				}

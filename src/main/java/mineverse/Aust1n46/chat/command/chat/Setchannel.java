@@ -67,9 +67,6 @@ public class Setchannel extends Command {
 			else {
 				player.setModified(true);
 			}
-			if (channel.getBungee()) {
-				MineverseChat.synchronize(player, true);
-			}
 			return true;
 		}
 		sender.sendMessage(LocalizedMessage.COMMAND_NO_PERMISSION.toString());

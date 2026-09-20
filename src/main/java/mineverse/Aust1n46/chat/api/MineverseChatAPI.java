@@ -2,15 +2,20 @@ package mineverse.Aust1n46.chat.api;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import mineverse.Aust1n46.chat.MineverseChat;
+import mineverse.Aust1n46.chat.database.PlayerData;
+import mineverse.Aust1n46.chat.database.PlayerStateSnapshot;
 
 /**
  * API class for looking up wrapped {@link MineverseChatPlayer} objects from
@@ -19,12 +24,14 @@ import mineverse.Aust1n46.chat.MineverseChat;
  * @author Aust1n46
  */
 public final class MineverseChatAPI {
-    private static HashMap<UUID, MineverseChatPlayer> playerMap = new HashMap<UUID, MineverseChatPlayer>();
-    private static HashMap<String, UUID> namesMap = new HashMap<String, UUID>();
-    private static HashMap<UUID, MineverseChatPlayer> onlinePlayerMap = new HashMap<UUID, MineverseChatPlayer>();
-    private static List<String> networkPlayerNames = new ArrayList<String>();
+    public static final int MAX_CACHED_OFFLINE_PLAYERS = 1024;
 
-    private static HashMap<UUID, SynchronizedMineverseChatPlayer> proxyPlayerMap = new HashMap<UUID, SynchronizedMineverseChatPlayer>();
+    private static final ConcurrentHashMap<UUID, MineverseChatPlayer> playerMap = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, UUID> namesMap = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<UUID, String> uuidNamesMap = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<UUID, MineverseChatPlayer> onlinePlayerMap = new ConcurrentHashMap<>();
+    private static final ConcurrentLinkedDeque<UUID> offlinePlayerOrder = new ConcurrentLinkedDeque<>();
+    private static List<String> networkPlayerNames = new ArrayList<String>();
 
     public static List<String> getNetworkPlayerNames() {
         return networkPlayerNames;
@@ -38,44 +45,39 @@ public final class MineverseChatAPI {
         networkPlayerNames.add(name);
     }
 
-    public static void addSynchronizedMineverseChatPlayerToMap(SynchronizedMineverseChatPlayer smcp) {
-        proxyPlayerMap.put(smcp.getUUID(), smcp);
-    }
-
-//    @Deprecated
-//    public static void clearBungeePlayerMap() {
-//        clearProxyPlayerMap();
-//    }
-    
-    public static void clearProxyPlayerMap() {
-        proxyPlayerMap.clear();
-    }
-
-    public static Collection<SynchronizedMineverseChatPlayer> getSynchronizedMineverseChatPlayers() {
-        return proxyPlayerMap.values();
-    }
-
     public static void addNameToMap(MineverseChatPlayer mcp) {
+        String previousName = uuidNamesMap.put(mcp.getUUID(), mcp.getName());
+        if (previousName != null && !previousName.equals(mcp.getName())) {
+            namesMap.remove(previousName, mcp.getUUID());
+        }
         namesMap.put(mcp.getName(), mcp.getUUID());
     }
 
     public static void removeNameFromMap(String name) {
-        namesMap.remove(name);
+        UUID uuid = namesMap.remove(name);
+        if (uuid != null) {
+            uuidNamesMap.remove(uuid, name);
+        }
     }
 
     public static void clearNameMap() {
         namesMap.clear();
+        uuidNamesMap.clear();
     }
 
     @SuppressWarnings("deprecation")
     public static void addMineverseChatPlayerToMap(MineverseChatPlayer mcp) {
-        playerMap.put(mcp.getUUID(), mcp);
+        MineverseChatPlayer previous = playerMap.put(mcp.getUUID(), mcp);
+        if (previous != null && previous != mcp) {
+            MineverseChat.players.remove(previous);
+        }
         MineverseChat.players.add(mcp);
     }
 
     @SuppressWarnings("deprecation")
     public static void clearMineverseChatPlayerMap() {
         playerMap.clear();
+        offlinePlayerOrder.clear();
         MineverseChat.players.clear();
     }
 
@@ -85,14 +87,22 @@ public final class MineverseChatAPI {
 
     @SuppressWarnings("deprecation")
     public static void addMineverseChatOnlinePlayerToMap(MineverseChatPlayer mcp) {
-        onlinePlayerMap.put(mcp.getUUID(), mcp);
+        offlinePlayerOrder.remove(mcp.getUUID());
+        MineverseChatPlayer previous = onlinePlayerMap.put(mcp.getUUID(), mcp);
+        if (previous != null && previous != mcp) {
+            MineverseChat.onlinePlayers.remove(previous);
+        }
         MineverseChat.onlinePlayers.add(mcp);
     }
 
     @SuppressWarnings("deprecation")
     public static void removeMineverseChatOnlinePlayerToMap(MineverseChatPlayer mcp) {
-        onlinePlayerMap.remove(mcp.getUUID());
+        if (!onlinePlayerMap.remove(mcp.getUUID(), mcp)) {
+            MineverseChat.onlinePlayers.remove(mcp);
+            return;
+        }
         MineverseChat.onlinePlayers.remove(mcp);
+        cacheOfflineMineverseChatPlayer(mcp);
     }
 
     @SuppressWarnings("deprecation")
@@ -129,9 +139,13 @@ public final class MineverseChatAPI {
         if (uuid == null) {
             return null;
         }
-        MineverseChatPlayer mcp = playerMap.get(uuid);
+        MineverseChatPlayer mcp = getCachedMineverseChatPlayer(uuid);
         if (mcp != null) {
             return mcp;
+        }
+        Optional<MineverseChatPlayer> stored = PlayerData.loadPlayerBlocking(uuid);
+        if (stored.isPresent()) {
+            return cacheLoadedOfflinePlayer(stored.get());
         }
         return createDefaultMineverseChatPlayer(uuid, Bukkit.getOfflinePlayer(uuid).getName());
     }
@@ -144,6 +158,12 @@ public final class MineverseChatAPI {
      */
     public static MineverseChatPlayer getMineverseChatPlayer(String name) {
         UUID uuid = namesMap.get(name);
+        if (uuid == null) {
+            Optional<MineverseChatPlayer> stored = PlayerData.loadPlayerBlocking(name);
+            if (stored.isPresent()) {
+                return cacheLoadedOfflinePlayer(stored.get());
+            }
+        }
         if (uuid == null) {
             uuid = getCachedUUID(name);
         }
@@ -181,9 +201,75 @@ public final class MineverseChatAPI {
             return null;
         }
         MineverseChatPlayer mcp = new MineverseChatPlayer(uuid, name);
+        return cacheLoadedOfflinePlayer(mcp);
+    }
+
+    private static MineverseChatPlayer cacheLoadedOfflinePlayer(MineverseChatPlayer mcp) {
+        MineverseChatPlayer existing = playerMap.putIfAbsent(mcp.getUUID(), mcp);
+        if (existing != null) {
+            return existing;
+        }
         addMineverseChatPlayerToMap(mcp);
         addNameToMap(mcp);
+        cacheOfflineMineverseChatPlayer(mcp);
         return mcp;
+    }
+
+    /**
+     * Return a wrapper only when it is already online or in the bounded recent
+     * offline cache. This method never performs disk access or creates a wrapper.
+     */
+    public static MineverseChatPlayer getCachedMineverseChatPlayer(UUID uuid) {
+        MineverseChatPlayer player = playerMap.get(uuid);
+        if (player != null && !onlinePlayerMap.containsKey(uuid)) {
+            offlinePlayerOrder.remove(uuid);
+            offlinePlayerOrder.addLast(uuid);
+        }
+        return player;
+    }
+
+    /**
+     * Keep recently used offline wrappers bounded so long-running servers do not
+     * slowly rebuild the old all-players-in-memory behaviour.
+     */
+    public static void cacheOfflineMineverseChatPlayer(MineverseChatPlayer player) {
+        UUID uuid = player.getUUID();
+        offlinePlayerOrder.remove(uuid);
+        offlinePlayerOrder.addLast(uuid);
+        while (offlinePlayerOrder.size() > MAX_CACHED_OFFLINE_PLAYERS) {
+            UUID evictedUuid = offlinePlayerOrder.pollFirst();
+            if (evictedUuid == null || onlinePlayerMap.containsKey(evictedUuid)) continue;
+            MineverseChatPlayer evicted = playerMap.remove(evictedUuid);
+            if (evicted != null) {
+                if (evicted.wasModified()) {
+                    PlayerData.savePlayerData(evicted);
+                }
+                namesMap.remove(evicted.getName(), evictedUuid);
+                uuidNamesMap.remove(evictedUuid, evicted.getName());
+                MineverseChat.players.remove(evicted);
+            }
+        }
+    }
+
+    /**
+     * Asynchronously read one stored player record without loading every player.
+     */
+    public static CompletableFuture<Optional<PlayerStateSnapshot>> getPlayerStateAsync(UUID uuid) {
+        return PlayerData.findByUuidAsync(uuid);
+    }
+
+    /**
+     * Asynchronously find one stored player by their last known name.
+     */
+    public static CompletableFuture<Optional<PlayerStateSnapshot>> getPlayerStateAsync(String name) {
+        return PlayerData.findByNameAsync(name);
+    }
+
+    /**
+     * Asynchronously find the stored players in a party using the SQLite index.
+     */
+    public static CompletableFuture<List<PlayerStateSnapshot>> getPartyPlayerStatesAsync(UUID party) {
+        return PlayerData.findByPartyAsync(party);
     }
 
     /**
@@ -219,13 +305,4 @@ public final class MineverseChatAPI {
         return getOnlineMineverseChatPlayer(namesMap.get(name));
     }
 
-    /**
-     * Get a SynchronizedMineverseChatPlayer from a UUID.
-     *
-     * @param uuid {@link UUID}
-     * @return {@link SynchronizedMineverseChatPlayer}
-     */
-    public static SynchronizedMineverseChatPlayer getSynchronizedMineverseChatPlayer(UUID uuid) {
-        return proxyPlayerMap.get(uuid);
-    }
 }

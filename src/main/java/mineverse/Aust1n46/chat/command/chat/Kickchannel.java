@@ -41,13 +41,9 @@ public class Kickchannel extends Command {
 			} else {
 				player.setModified(true);
 			}
-			boolean isThereABungeeChannel = channel.getBungee();
 			if (player.getListening().size() == 0) {
 				player.addListening(ChatChannel.getDefaultChannel().getName());
 				player.setCurrentChannel(ChatChannel.getDefaultChannel());
-				if (ChatChannel.getDefaultChannel().getBungee()) {
-					isThereABungeeChannel = true;
-				}
 				if (player.isOnline()) {
 					player.getPlayer().sendMessage(LocalizedMessage.MUST_LISTEN_ONE_CHANNEL.toString());
 					player.getPlayer()
@@ -55,9 +51,6 @@ public class Kickchannel extends Command {
 									.replace("{channel_name}", ChatChannel.getDefaultChannel().getName()));
 				} else
 					player.setModified(true);
-			}
-			if (isThereABungeeChannel) {
-				MineverseChat.synchronize(player, true);
 			}
 			return true;
 		}

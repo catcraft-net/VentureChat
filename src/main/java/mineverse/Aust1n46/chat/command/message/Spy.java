@@ -26,12 +26,10 @@ public class Spy extends Command {
 			if (!mcp.isSpy()) {
 				mcp.setSpy(true);
 				mcp.getPlayer().sendMessage(LocalizedMessage.SPY_ON.toString());
-				MineverseChat.synchronize(mcp, true);
 				return true;
 			}
 			mcp.setSpy(false);
 			mcp.getPlayer().sendMessage(LocalizedMessage.SPY_OFF.toString());
-			MineverseChat.synchronize(mcp, true);
 			return true;
 		}
 		mcp.getPlayer().sendMessage(LocalizedMessage.COMMAND_NO_PERMISSION.toString());

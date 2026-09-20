@@ -47,7 +47,7 @@ public class Channelinfo extends Command {
 			}
 			sender.sendMessage(ChatColor.GOLD + "Autojoin: " + chname.getColor() + chname.getAutojoin());
 			sender.sendMessage(ChatColor.GOLD + "Default: " + chname.getColor() + chname.hasDistance());
-			if (!chname.hasDistance() || chname.getBungee()) {
+			if (!chname.hasDistance()) {
 				sender.sendMessage(ChatColor.GOLD + "Distance: " + ChatColor.RED + "N/A");
 			} else {
 				sender.sendMessage(ChatColor.GOLD + "Distance: " + chname.getColor() + chname.getDistance());
@@ -57,7 +57,6 @@ public class Channelinfo extends Command {
 			} else {
 				sender.sendMessage(ChatColor.GOLD + "Cooldown: " + chname.getColor() + chname.getCooldown());
 			}
-			sender.sendMessage(ChatColor.GOLD + "Bungeecord: " + chname.getColor() + chname.getBungee());
 			sender.sendMessage(ChatColor.GOLD + "Format: " + chname.getColor() + chname.getFormat());
 			return true;
 		} else {

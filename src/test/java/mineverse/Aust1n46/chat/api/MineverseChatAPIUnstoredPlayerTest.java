@@ -3,10 +3,14 @@ package mineverse.Aust1n46.chat.api;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import java.util.UUID;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -20,6 +24,8 @@ import org.mockito.Mockito;
 
 import mineverse.Aust1n46.chat.MineverseChat;
 import mineverse.Aust1n46.chat.channel.ChatChannel;
+import mineverse.Aust1n46.chat.database.PlayerData;
+import mineverse.Aust1n46.chat.database.PlayerStateSnapshot;
 
 /**
  * Players who have never changed anything have no data file and are not loaded on
@@ -57,6 +63,7 @@ public class MineverseChatAPIUnstoredPlayerTest {
 	public void tearDown() {
 		MineverseChatAPI.clearMineverseChatPlayerMap();
 		MineverseChatAPI.clearNameMap();
+		MineverseChatAPI.clearOnlineMineverseChatPlayerMap();
 	}
 
 	@Test
@@ -89,5 +96,94 @@ public class MineverseChatAPIUnstoredPlayerTest {
 		when(Bukkit.getOfflinePlayer(PLAYER_UUID)).thenReturn(offline);
 
 		assertNull(MineverseChatAPI.getMineverseChatPlayer(PLAYER_UUID));
+	}
+
+	@Test
+	public void asyncStorageLookupDoesNotCreateAnOfflinePlayerWrapper() {
+		PlayerStateSnapshot snapshot = PlayerStateSnapshot.defaults(
+				PLAYER_UUID, "Stored", "Global", Set.of("Global"), 3L);
+		CompletableFuture<Optional<PlayerStateSnapshot>> result = CompletableFuture.completedFuture(Optional.of(snapshot));
+
+		try (MockedStatic<PlayerData> storage = Mockito.mockStatic(PlayerData.class)) {
+			storage.when(() -> PlayerData.findByUuidAsync(PLAYER_UUID)).thenReturn(result);
+
+			assertSame(result, MineverseChatAPI.getPlayerStateAsync(PLAYER_UUID));
+			assertFalse(MineverseChatAPI.getMineverseChatPlayers().iterator().hasNext());
+		}
+	}
+
+	@Test
+	public void synchronousCompatibilityLookupUsesOneStoredPlayer() {
+		MineverseChatPlayer stored = new MineverseChatPlayer(PLAYER_UUID, "Stored");
+		try (MockedStatic<PlayerData> storage = Mockito.mockStatic(PlayerData.class)) {
+			storage.when(() -> PlayerData.loadPlayerBlocking("Stored")).thenReturn(Optional.of(stored));
+
+			assertSame(stored, MineverseChatAPI.getMineverseChatPlayer("Stored"));
+			assertSame(stored, MineverseChatAPI.getCachedMineverseChatPlayer(PLAYER_UUID));
+			storage.verify(() -> PlayerData.loadPlayerBlocking("Stored"), Mockito.times(1));
+		}
+	}
+
+	@Test
+	public void offlineWrapperCacheEvictsTheOldestPlayer() {
+		MineverseChatPlayer first = null;
+		MineverseChatPlayer last = null;
+		for (int index = 0; index <= MineverseChatAPI.MAX_CACHED_OFFLINE_PLAYERS; index++) {
+			MineverseChatPlayer player = Mockito.mock(MineverseChatPlayer.class);
+			UUID uuid = new UUID(0L, index + 1L);
+			when(player.getUUID()).thenReturn(uuid);
+			when(player.getName()).thenReturn("Player" + index);
+			MineverseChatAPI.addMineverseChatPlayerToMap(player);
+			MineverseChatAPI.cacheOfflineMineverseChatPlayer(player);
+			if (index == 0) first = player;
+			last = player;
+		}
+
+		assertNull(MineverseChatAPI.getCachedMineverseChatPlayer(first.getUUID()));
+		assertSame(last, MineverseChatAPI.getCachedMineverseChatPlayer(last.getUUID()));
+		assertEquals(MineverseChatAPI.MAX_CACHED_OFFLINE_PLAYERS, MineverseChatAPI.getMineverseChatPlayers().size());
+	}
+
+	@Test
+	public void reconnectReplacesTheOldCompatibilityWrapper() {
+		MineverseChatPlayer latest = null;
+		for (int index = 0; index < 100; index++) {
+			latest = new MineverseChatPlayer(PLAYER_UUID, "ReconnectPlayer");
+			MineverseChatAPI.addMineverseChatPlayerToMap(latest);
+		}
+
+		assertEquals(1, MineverseChatAPI.getMineverseChatPlayers().size());
+		assertEquals(1, MineverseChat.players.size());
+		assertSame(latest, MineverseChatAPI.getCachedMineverseChatPlayer(PLAYER_UUID));
+	}
+
+	@Test
+	public void reconnectReplacesTheOldOnlineCompatibilityWrapper() {
+		MineverseChatPlayer oldPlayer = new MineverseChatPlayer(PLAYER_UUID, "ReconnectPlayer");
+		MineverseChatPlayer latest = new MineverseChatPlayer(PLAYER_UUID, "ReconnectPlayer");
+		MineverseChatAPI.addMineverseChatOnlinePlayerToMap(oldPlayer);
+		MineverseChatAPI.addMineverseChatOnlinePlayerToMap(latest);
+
+		assertEquals(1, MineverseChatAPI.getOnlineMineverseChatPlayers().size());
+		assertEquals(1, MineverseChat.onlinePlayers.size());
+		assertSame(latest, MineverseChatAPI.getOnlineMineverseChatPlayer(PLAYER_UUID));
+
+		MineverseChatAPI.removeMineverseChatOnlinePlayerToMap(oldPlayer);
+		assertSame(latest, MineverseChatAPI.getOnlineMineverseChatPlayer(PLAYER_UUID));
+	}
+
+	@Test
+	public void newNameReplacesTheOldNameForTheSameUuid() {
+		MineverseChatPlayer oldPlayer = new MineverseChatPlayer(PLAYER_UUID, "OldName");
+		MineverseChatAPI.addMineverseChatPlayerToMap(oldPlayer);
+		MineverseChatAPI.addNameToMap(oldPlayer);
+
+		MineverseChatPlayer renamedPlayer = new MineverseChatPlayer(PLAYER_UUID, "NewName");
+		MineverseChatAPI.addMineverseChatPlayerToMap(renamedPlayer);
+		MineverseChatAPI.addNameToMap(renamedPlayer);
+		when(Bukkit.getOfflinePlayerIfCached("OldName")).thenReturn(null);
+
+		assertNull(MineverseChatAPI.getMineverseChatPlayer("OldName"));
+		assertSame(renamedPlayer, MineverseChatAPI.getMineverseChatPlayer("NewName"));
 	}
 }

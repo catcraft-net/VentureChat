@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -24,11 +25,20 @@ import mineverse.Aust1n46.chat.utilities.UUIDFetcher;
  * @author Aust1n46
  */
 public class LoginListener implements Listener {
-	private MineverseChat plugin = MineverseChat.getInstance();
+	@EventHandler(priority = EventPriority.HIGHEST)
+	public void onAsyncPlayerPreLogin(AsyncPlayerPreLoginEvent event) {
+		try {
+			PlayerData.prepareLogin(event.getUniqueId(), event.getName());
+		} catch (Exception exception) {
+			event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER,
+					"Your VentureChat data could not be loaded. Please try joining again.");
+		}
+	}
 
 	@EventHandler(priority = EventPriority.LOW)
 	public void onPlayerQuit(PlayerQuitEvent playerQuitEvent) {
 		MineverseChatPlayer mcp = MineverseChatAPI.getOnlineMineverseChatPlayer(playerQuitEvent.getPlayer());
+		if (mcp == null) return;
 		PlayerData.savePlayerData(mcp);
 		mcp.clearMessages();
 		mcp.setOnline(false);
@@ -44,20 +54,12 @@ public class LoginListener implements Listener {
 
 	@EventHandler(priority = EventPriority.LOW)
 	public void onPlayerJoin(PlayerJoinEvent event) throws Exception {
-		MineverseChatPlayer mcp = MineverseChatAPI.getMineverseChatPlayer(event.getPlayer());
 		Player player = event.getPlayer();
 		String name = player.getName();
-		if(mcp == null) {
-			UUID uuid = player.getUniqueId();
-			mcp = new MineverseChatPlayer(uuid, name);
-			MineverseChatAPI.addMineverseChatPlayerToMap(mcp);
-			MineverseChatAPI.addNameToMap(mcp);
-		}
+		MineverseChatPlayer mcp = PlayerData.consumeLogin(player.getUniqueId(), name);
+		MineverseChatAPI.addMineverseChatPlayerToMap(mcp);
+		MineverseChatAPI.addNameToMap(mcp);
 		UUIDFetcher.checkOfflineUUIDWarning(mcp.getUUID());
-		//check for name change
-		if(!mcp.getName().equals(name)) {
-			handleNameChange(mcp, event.getPlayer());
-		}
 		mcp.setOnline(true);
 		mcp.setHasPlayed(false);
 		MineverseChatAPI.addMineverseChatOnlinePlayerToMap(mcp);
@@ -71,16 +73,6 @@ public class LoginListener implements Listener {
 			else {
 				mcp.addListening(ch.getName());
 			}
-		}
-
-		if (MineverseChat.isConnectedToProxy()) {
-			long delayInTicks = 20L;
-			final MineverseChatPlayer sync = mcp;
-			plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, new Runnable() {
-				public void run() {
-					MineverseChat.synchronize(sync, false);
-				}
-			}, delayInTicks);
 		}
 	}
 }

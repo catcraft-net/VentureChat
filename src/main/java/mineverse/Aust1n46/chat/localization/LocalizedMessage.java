@@ -10,8 +10,6 @@ public enum LocalizedMessage {
     BLOCK_COMMAND_SENDER("BlockCommandSender"),
     BLOCKED_COMMAND("BlockedCommand"),
     BLOCKING_MESSAGE("BlockingMessage"),
-    BUNGEE_TOGGLE_OFF("BungeeToggleOff"),
-    BUNGEE_TOGGLE_ON("BungeeToggleOn"),
     CLEAR_CHAT_SENDER("ClearChatSender"),
     CLEAR_CHAT_SERVER("ClearChatServer"),
     CHANNEL_CANNOT_MUTE("ChannelCannotMute"),
