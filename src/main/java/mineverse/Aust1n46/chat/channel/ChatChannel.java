@@ -50,8 +50,10 @@ public class ChatChannel {
 	 * Read chat channels from config file and initialize channel array.
 	 */
 	public static void initialize() {
-		chatChannels = new HashMap<String, ChatChannel>();
 		ConfigurationSection cs = plugin.getConfig().getConfigurationSection("channels");
+		rejectObsoletePrivateChannels(cs);
+		chatChannels = new HashMap<String, ChatChannel>();
+		defaultChatChannel = null;
 		int len = (cs.getKeys(false)).size();
 		channels = new ChatChannel[len];
 		int counter = 0;
@@ -88,6 +90,23 @@ public class ChatChannel {
 			defaultColor = defaultChatChannel.getColor();
 			chatChannels.put("missingdefault", defaultChatChannel);
 			chatChannels.put("md", defaultChatChannel);
+		}
+	}
+
+	/** Fail before replacing routes that previously relied on integration privacy. */
+	private static void rejectObsoletePrivateChannels(ConfigurationSection channelsConfig) {
+		boolean townyEnabled = plugin.getConfig().getBoolean("enable_towny_channel", false);
+		boolean factionsEnabled = plugin.getConfig().getBoolean("enable_factions_channel", false);
+		for (String name : channelsConfig.getKeys(false)) {
+			boolean obsolete = townyEnabled && (name.equalsIgnoreCase("Town") || name.equalsIgnoreCase("Nation"))
+					|| factionsEnabled && name.equalsIgnoreCase("Faction");
+			if (obsolete) {
+				String message = "Channel '" + name + "' used a removed Towny/Factions integration. "
+						+ "VentureChat refuses to expose its former private messages as ordinary channel chat. "
+						+ "Rename or delete that channel in config.yml and configure its intended access before restarting.";
+				plugin.getLogger().severe(message);
+				throw new IllegalStateException(message);
+			}
 		}
 	}
 

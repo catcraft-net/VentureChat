@@ -100,6 +100,7 @@ public class IgnoredPrivateMessageTest {
 
 	@Before
 	public void setUp() {
+		when(plugin.getChatFeatures()).thenReturn(null);
 		sender = Mockito.mock(Player.class);
 		target = Mockito.mock(Player.class);
 		spy = Mockito.mock(Player.class);
@@ -201,5 +202,36 @@ public class IgnoredPrivateMessageTest {
 		verify(target, never()).sendMessage(anyString());
 		verify(spy, never()).sendMessage(anyString());
 	}
+
+    private void matchingPersonalFilter() {
+        var features = Mockito.mock(mineverse.Aust1n46.chat.settings.ChatFeatures.class);
+        when(plugin.getChatFeatures()).thenReturn(features);
+        when(features.evaluate(anyString())).thenReturn(mineverse.Aust1n46.chat.filter.FilterDecision.MATCH);
+        when(targetMcp.getIgnores()).thenReturn(Collections.emptySet());
+        when(targetMcp.hasPersonalFilter()).thenReturn(true);
+        when(targetMcp.hasNotifications()).thenReturn(true);
+    }
+
+    @Test public void personalFilterSilentlyHidesDirectMessageEvenFromStaffBypass() {
+        matchingPersonalFilter();
+        when(sender.hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION)).thenReturn(true);
+        messageEchoesSuccessOnlyToSender();
+    }
+    @Test public void personalFilterSilentlyHidesReply() {
+        matchingPersonalFilter();
+        replyEchoesSuccessOnlyToSender();
+    }
+    @Test public void personalFilterSilentlyHidesConversation() {
+        matchingPersonalFilter();
+        conversationEchoesSuccessOnlyToSender();
+    }
+    @Test public void personalFilterOptOutAllowsDelivery() {
+        matchingPersonalFilter();
+        when(targetMcp.hasPersonalFilter()).thenReturn(false);
+        new Message().execute(sender, "msg", new String[] {"Target", "hello"});
+        verify(target).sendMessage("from hello");
+        verify(targetMcp).setReplyPlayer(SENDER_UUID);
+        mockedFormat.verify(() -> Format.playMessageSound(targetMcp));
+    }
 
 }

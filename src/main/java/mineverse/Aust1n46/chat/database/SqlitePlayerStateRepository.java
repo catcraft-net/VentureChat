@@ -19,19 +19,19 @@ import java.util.Set;
 import java.util.UUID;
 
 public final class SqlitePlayerStateRepository implements PlayerStateRepository {
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 2;
 
     private static final String COLUMNS = "uuid,name,current_channel,ignores_json,listening_json,mutes_json,"
             + "blocked_commands_json,host,party_uuid,filter_enabled,notifications,json_format,spy,command_spy,"
-            + "ranged_spy,message_toggle,revision";
+            + "ranged_spy,message_toggle,personal_filter,revision";
     private static final String DELETE_SQL = "DELETE FROM players WHERE uuid=? AND revision<=?";
-    private static final String UPSERT_SQL = "INSERT INTO players(" + COLUMNS + ",updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
+    private static final String UPSERT_SQL = "INSERT INTO players(" + COLUMNS + ",updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
             + "ON CONFLICT(uuid) DO UPDATE SET name=excluded.name,current_channel=excluded.current_channel,"
             + "ignores_json=excluded.ignores_json,listening_json=excluded.listening_json,mutes_json=excluded.mutes_json,"
             + "blocked_commands_json=excluded.blocked_commands_json,host=excluded.host,party_uuid=excluded.party_uuid,"
             + "filter_enabled=excluded.filter_enabled,notifications=excluded.notifications,json_format=excluded.json_format,"
             + "spy=excluded.spy,command_spy=excluded.command_spy,ranged_spy=excluded.ranged_spy,"
-            + "message_toggle=excluded.message_toggle,revision=excluded.revision,updated_at=excluded.updated_at "
+            + "message_toggle=excluded.message_toggle,personal_filter=excluded.personal_filter,revision=excluded.revision,updated_at=excluded.updated_at "
             + "WHERE excluded.revision>=players.revision";
 
     private final Path databasePath;
@@ -71,6 +71,11 @@ public final class SqlitePlayerStateRepository implements PlayerStateRepository 
                     + "message_toggle INTEGER NOT NULL,"
                     + "revision INTEGER NOT NULL,"
                     + "updated_at INTEGER NOT NULL)");
+            boolean hasPersonalFilter = false;
+            try (ResultSet columns = statement.executeQuery("PRAGMA table_info(players)")) {
+                while (columns.next()) if ("personal_filter".equals(columns.getString("name"))) hasPersonalFilter = true;
+            }
+            if (!hasPersonalFilter) statement.executeUpdate("ALTER TABLE players ADD COLUMN personal_filter INTEGER NOT NULL DEFAULT 1");
             statement.executeUpdate("CREATE INDEX IF NOT EXISTS players_name_idx ON players(name COLLATE NOCASE)");
             statement.executeUpdate("CREATE INDEX IF NOT EXISTS players_party_idx ON players(party_uuid)");
             try (PreparedStatement metadata = connection.prepareStatement(
@@ -160,6 +165,7 @@ public final class SqlitePlayerStateRepository implements PlayerStateRepository 
         upsert.setInt(index++, state.commandSpy() ? 1 : 0);
         upsert.setInt(index++, state.rangedSpy() ? 1 : 0);
         upsert.setInt(index++, state.messageToggle() ? 1 : 0);
+        upsert.setInt(index++, state.personalFilter() ? 1 : 0);
         upsert.setLong(index++, state.revision());
         upsert.setLong(index, System.currentTimeMillis());
         upsert.executeUpdate();
@@ -230,6 +236,7 @@ public final class SqlitePlayerStateRepository implements PlayerStateRepository 
                 row.getInt("command_spy") != 0,
                 row.getInt("ranged_spy") != 0,
                 row.getInt("message_toggle") != 0,
+                row.getInt("personal_filter") != 0,
                 row.getLong("revision"));
     }
 

@@ -1,5 +1,8 @@
 package mineverse.Aust1n46.chat.listeners;
 
+import mineverse.Aust1n46.chat.settings.ChatFeatures;
+import mineverse.Aust1n46.chat.settings.PrivateMessages;
+
 import java.util.Set;
 
 import org.bukkit.Bukkit;
@@ -13,9 +16,6 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.plugin.PluginManager;
 
 import com.comphenix.protocol.events.PacketContainer;
-import com.massivecraft.factions.entity.MPlayer;
-import com.palmergames.bukkit.towny.TownyUniverse;
-import com.palmergames.bukkit.towny.object.Resident;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import mineverse.Aust1n46.chat.MineverseChat;
@@ -70,23 +70,12 @@ public class ChatListener implements Listener {
 		}
 		
 		if(mcp.hasConversation() && !mcp.isQuickChat()) {
-			MineverseChatPlayer tp = MineverseChatAPI.getMineverseChatPlayer(mcp.getConversation());
-			if(!tp.isOnline()) {
-				mcp.getPlayer().sendMessage(ChatColor.RED + tp.getName() + " is not available.");
-				if(!mcp.getPlayer().hasPermission("venturechat.spy.override")) {
-					for(MineverseChatPlayer p : MineverseChatAPI.getOnlineMineverseChatPlayers()) {
-						if(p.getName().equals(mcp.getName())) {
-							continue;
-						}
-						if(p.isSpy()) {
-							p.getPlayer().sendMessage(LocalizedMessage.EXIT_PRIVATE_CONVERSATION_SPY.toString()
-									.replace("{player_sender}", mcp.getName())
-									.replace("{player_receiver}", tp.getName()));
-						}
-					}
-				}
-				mcp.setConversation(null);
-			}
+			MineverseChatPlayer tp = MineverseChatAPI.getOnlineMineverseChatPlayer(mcp.getConversation());
+			if(tp == null || !tp.isOnline() || !mcp.getPlayer().canSee(tp.getPlayer())) {
+                mcp.getPlayer().sendMessage(ChatColor.RED + "Your conversation partner is not available. Private conversation ended.");
+                mcp.setConversation(null);
+                return;
+            }
 			else {
 				boolean senderBypassesToggle = mcp.getPlayer().hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION);
 				boolean ignored = tp.getIgnores().contains(mcp.getUUID()) && !senderBypassesToggle;
@@ -100,7 +89,7 @@ public class ChatListener implements Listener {
 				String echo = "";
 				String send = "";
 				String spy = "";
-				if(mcp.hasFilter()) {
+				if(mcp.hasFilter() && ChatFeatures.legacyPrivateFilter(plugin)) {
 					filtered = Format.FilterChat(filtered);
 				}
 				if(mcp.getPlayer().hasPermission("venturechat.color.legacy")) {
@@ -122,9 +111,9 @@ public class ChatListener implements Listener {
 				echo = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(tp.getPlayer(), echo.replaceAll("receiver_", ""))) + filtered;
 				spy = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(tp.getPlayer(), spy.replaceAll("receiver_", ""))) + filtered;
 
-				if(ignored) {
+				if(ignored || ChatFeatures.hide(ChatFeatures.evaluate(plugin, chat), mcp, tp)) {
 					mcp.setReplyPlayer(tp.getUUID());
-					mcp.getPlayer().sendMessage(echo);
+					PrivateMessages.send(plugin, mcp.getPlayer(), echo, tp.getName());
 					event.setCancelled(true);
 					return;
 				}
@@ -139,8 +128,9 @@ public class ChatListener implements Listener {
 						}
 					}
 				}
-				tp.getPlayer().sendMessage(send);
-				mcp.getPlayer().sendMessage(echo);
+				PrivateMessages.send(plugin, tp.getPlayer(), send, mcp.getName());
+                ChatFeatures.record(plugin, mcp, "DirectMessage", tp.getUUID(), chat, true);
+				PrivateMessages.send(plugin, mcp.getPlayer(), echo, tp.getName());
 				if(tp.hasNotifications()) {
 					Format.playMessageSound(tp);
 				}
@@ -156,10 +146,12 @@ public class ChatListener implements Listener {
 		if(mcp.isPartyChat() && !mcp.isQuickChat()) {
 			if(mcp.hasParty()) {
 				String partyformat = "";
+                var personalDecision = ChatFeatures.evaluate(plugin, chat);
 				for(MineverseChatPlayer p : MineverseChatAPI.getOnlineMineverseChatPlayers()) {
 					if((p.hasParty() && p.getParty().toString().equals(mcp.getParty().toString()) || p.isSpy())) {
+                        if(ChatFeatures.hide(personalDecision, mcp, p)) continue;
 						String filtered = chat;
-						if(mcp.hasFilter()) {
+						if(mcp.hasFilter() && ChatFeatures.legacyPrivateFilter(plugin)) {
 							filtered = Format.FilterChat(filtered);
 						}
 						if(mcp.getPlayer().hasPermission("venturechat.color.legacy")) {
@@ -182,6 +174,7 @@ public class ChatListener implements Listener {
 					}
 				}
 				Bukkit.getConsoleSender().sendMessage(partyformat);
+                ChatFeatures.record(plugin, mcp, "Party", mcp.getParty(), chat, true);
 				if(Database.isEnabled()) {
 					Database.writeVentureChat(mcp.getUUID().toString(), mcp.getName(), "Local", "Party_Component", chat.replace("'", "''"), "Chat");
 				}
@@ -337,11 +330,12 @@ public class ChatListener implements Listener {
 			chDistance = eventChannel.getDistance();
 		}
 		
+		var incomingDecision = ChatFeatures.evaluate(plugin, chat);
 		format = Format.FormatStringAll(eventChannel.getFormat());
 		
 		filterthis = eventChannel.isFiltered();
 		if(filterthis) {
-			if(mcp.hasFilter()) {
+			if(mcp.hasFilter() && ChatFeatures.legacyChannelFilter(plugin,eventChannel.getName())) {
 				chat = Format.FilterChat(chat);
 			}
 		}
@@ -358,77 +352,6 @@ public class ChatListener implements Listener {
 					recipientCount--;
 					continue;
 				}
-				if(plugin.getConfig().getBoolean("enable_towny_channel") && pluginManager.isPluginEnabled("Towny")) {
-					try {
-						TownyUniverse towny = TownyUniverse.getInstance();
-						if(eventChannel.getName().equalsIgnoreCase("Town")) {
-							Resident r = towny.getResident(p.getName());
-							Resident pp = towny.getResident(mcp.getName());
-							if(!pp.hasTown()) {
-								recipients.remove(p.getPlayer());
-								recipientCount--;
-								continue;
-							}
-							else if(!r.hasTown()) {
-								recipients.remove(p.getPlayer());
-								recipientCount--;
-								continue;
-							}
-							else if(!(r.getTown().getName().equals(pp.getTown().getName()))) {
-								recipients.remove(p.getPlayer());
-								recipientCount--;
-								continue;
-							}
-						}
-						if(eventChannel.getName().equalsIgnoreCase("Nation")) {
-							Resident r = towny.getResident(p.getName());
-							Resident pp = towny.getResident(mcp.getName());
-							if(!pp.hasNation()) {
-								recipients.remove(p.getPlayer());
-								recipientCount--;
-								continue;
-							}
-							else if(!r.hasNation()) {
-								recipients.remove(p.getPlayer());
-								recipientCount--;
-								continue;
-							}
-							else if(!(r.getTown().getNation().getName().equals(pp.getTown().getNation().getName()))) {
-								recipients.remove(p.getPlayer());
-								recipientCount--;
-								continue;
-							}
-						}
-					}
-					catch(Exception ex) {
-						ex.printStackTrace();
-					}
-				}
-
-				if(plugin.getConfig().getBoolean("enable_factions_channel") && pluginManager.isPluginEnabled("Factions")) {
-					try {
-						if(eventChannel.getName().equalsIgnoreCase("Faction")) {
-							MPlayer mplayer = MPlayer.get(mcp.getPlayer());
-							MPlayer mplayerp = MPlayer.get(p.getPlayer());
-							if(!mplayer.hasFaction()) {
-								recipients.remove(p.getPlayer());
-								recipientCount--;
-							}
-							else if(!mplayerp.hasFaction()) {
-								recipients.remove(p.getPlayer());
-								recipientCount--;
-							}
-							else if(!(mplayer.getFactionName().equals(mplayerp.getFactionName()))) {
-								recipients.remove(p.getPlayer());
-								recipientCount--;
-							}
-						}
-					}
-					catch(Exception ex) {
-						ex.printStackTrace();
-					}
-				}
-
 				if(chDistance > (double) 0 && !p.getRangedSpy()) {
 					locreceip = p.getPlayer().getLocation();
 					if(locreceip.getWorld() == mcp.getPlayer().getWorld()) {
@@ -486,12 +409,16 @@ public class ChatListener implements Listener {
 		//Fire event and wait for other plugin listeners to act on it
 		Bukkit.getServer().getPluginManager().callEvent(ventureChatEvent);
 		//Call method to send the processed chat
-		handleVentureChatEvent(ventureChatEvent);
+		handleVentureChatEvent(ventureChatEvent, incomingDecision);
 		// Reset quick chat flag
 		mcp.setQuickChat(false);
 	}
 	
 	public void handleVentureChatEvent(VentureChatEvent event) {
+        handleVentureChatEvent(event, ChatFeatures.evaluate(plugin, Format.stripColor(event.getChat())));
+    }
+
+    private void handleVentureChatEvent(VentureChatEvent event, mineverse.Aust1n46.chat.filter.FilterDecision personalDecision) {
 		MineverseChatPlayer mcp = event.getMineverseChatPlayer();
 		ChatChannel channel = event.getChannel();
 		Set<Player> recipients = event.getRecipients();
@@ -509,7 +436,9 @@ public class ChatListener implements Listener {
 				mcp.getPlayer().sendMessage(Format.FormatStringAll(plugin.getConfig().getString("emptychannelalert", "&6No one is listening to you.")));
 			}
 		}
+		ChatFeatures.record(plugin, mcp, channel.getName(), null, chat, channel.getDistance() > 0 || channel.hasPermission());
 		for(Player p : recipients) {
+            if(ChatFeatures.hide(personalDecision, mcp, MineverseChatAPI.getOnlineMineverseChatPlayer(p))) continue;
 			String json = Format.formatModerationGUI(globalJSON, p, mcp.getName(), channel.getName(), hash);
 			PacketContainer packet = Format.createPacketPlayOutChat(json);
 			Format.sendPacketPlayOutChat(p, packet);

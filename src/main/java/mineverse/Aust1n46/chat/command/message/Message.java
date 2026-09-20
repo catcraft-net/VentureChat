@@ -1,5 +1,7 @@
 package mineverse.Aust1n46.chat.command.message;
 
+import mineverse.Aust1n46.chat.settings.ChatFeatures;
+import mineverse.Aust1n46.chat.settings.PrivateMessages;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -56,7 +58,8 @@ public class Message extends Command {
 				for (int r = 1; r < args.length; r++) {
 					msg += " " + args[r];
 				}
-				if (mcp.hasFilter()) {
+				var personalDecision = ChatFeatures.evaluate(plugin, msg);
+if (mcp.hasFilter() && ChatFeatures.legacyPrivateFilter(plugin)) {
 					msg = Format.FilterChat(msg);
 				}
 				if (mcp.getPlayer().hasPermission("venturechat.color.legacy")) {
@@ -77,16 +80,17 @@ public class Message extends Command {
 				echo = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(player.getPlayer(), echo.replaceAll("receiver_", ""))) + msg;
 				spy = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(player.getPlayer(), spy.replaceAll("receiver_", ""))) + msg;
 
-				if (ignored) {
+				if (ignored || ChatFeatures.hide(personalDecision, mcp, player)) {
 					mcp.setReplyPlayer(player.getUUID());
-					mcp.getPlayer().sendMessage(echo);
+					PrivateMessages.send(plugin, mcp.getPlayer(), echo, player.getName());
 					return true;
 				}
 
 				player.setReplyPlayer(mcp.getUUID());
 				mcp.setReplyPlayer(player.getUUID());
-				player.getPlayer().sendMessage(send);
-				mcp.getPlayer().sendMessage(echo);
+				PrivateMessages.send(plugin, player.getPlayer(), send, mcp.getName());
+				ChatFeatures.record(plugin, mcp, "DirectMessage", player.getUUID(), msg, true);
+				PrivateMessages.send(plugin, mcp.getPlayer(), echo, player.getName());
 				if (player.hasNotifications()) {
 					Format.playMessageSound(player);
 				}

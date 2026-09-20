@@ -246,15 +246,6 @@ alias:
     components:
     - 'Message: &aThis is our website: www.site.net'
   
-# Enables the creation of special Towny channels: Town and Nation
-# To create these channels, simply name two channels below "Town" and "Nation"
-enable_towny_channel: false
-
-# Enables the creation of a special faction only channel using the Factions plugin
-# To create this channel, simply name a channel below "Faction"
-# WARNING: May not work for all versions of Factions!
-enable_factions_channel: false
-
 # color = [channel] color
 # chatcolor = text color
 # cooldown is in seconds
@@ -390,4 +381,37 @@ channels:
     permissions: None
     speak_permissions: None
     channel_prefix: '&f[&eLocal&f]'
-    format: '{venturechat_channel_prefix} {vault_prefix}{player_displayname}&e:'
+    format: '{venturechat_channel_prefix} {vault_prefix}{player_displayname}&e:'# Player-facing preferences. /chatsettings works alongside existing commands.
+chat-settings:
+  locked-channels: [Global]
+private-messages:
+  # Clicking a DM suggests an explicit recipient, so a later incoming DM cannot redirect it.
+  clickable-replies: true
+personal-filter:
+  enabled: true
+  # Exact supplied ChatSentry 5.6.7 rules are snapshotted at startup. Restart after rule changes.
+  # Additional literal phrases hide whole messages only for recipients who opt in.
+  additional-literals: []
+  # Keep the old sender-side censor off in private routes; recipient preference decides what is seen.
+  legacy-outgoing-private-filter: false
+chatsentry-scope:
+  # Remove the old CatChatScope JAR before enabling this replacement, then restart.
+  enabled: true
+  # Explicit channel allowlist. Global is intentionally absent.
+  private-channels: [Local, Group]
+  private-commands: [message, vmessage, msg, tell, whisper, pm, reply, vreply, r]
+
+# Separate bounded asynchronous history. Queue exhaustion drops records, never stalls chat.
+chat-history:
+  enabled: true
+  realm: server
+  channels: [Global]
+  log-private: false
+  queue-capacity: 4096
+  batch-size: 100
+  retention-days: 30
+  shutdown-millis: 2000
+  dashboard:
+    # Loopback only; use a secure tunnel/access proxy. Generated credential: dashboard-token.txt.
+    enabled: false
+    port: 8765
