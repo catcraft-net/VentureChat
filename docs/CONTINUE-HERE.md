@@ -1,25 +1,24 @@
-# Resume this change
+# Delivery and rollout checkpoint
 
-Paused at the owner's explicit request, 2026-09-21. Preserve this branch and draft PR. Do not merge or deploy automatically.
+Implementation and documentation review are complete. PR #5 is prepared for review; no merge or live deployment is authorized by this checkpoint.
 
 Branch: `feat/player-chat-controls-and-history`; base: `master` at `efd818e3b3fb7c5b8a140fa2dedec1e4909294e4`.
 
-## Already implemented
+The prior full build passed 97 tests, including exact ChatSentry fixtures and the storage benchmark. Disposable Paper checks and independent review passed. On resuming, only two focused bundled-configuration checks were run for the resource/documentation tidy-up. No production Java changed. See `validation-4.1.md` for precise evidence and boundaries.
 
-Player settings menu, persistent per-recipient filtering, offline unignore, safe explicit PM reply links, exact ChatSentry scope adapter, bounded SQLite history and authenticated dashboard, obsolete integration/compatibility removal. See `venturechat-roadmap.md` for decisions and defaults. No mentions or duplicate item-sharing feature.
+## Configuration before a test-realm rollout
 
-Latest full build passed 97/97 tests, including exact proprietary-JAR fixtures and the optional storage benchmark. Disposable Paper checks and independent review passed. See `validation-4.1.md` for precise evidence and limitations. Do not repeat the initial investigation.
+1. Use Paper 26.2 / Java 25 and retain Vault, PlaceholderAPI and compatible ProtocolLib. The supplied ChatSentry 5.6.7 artifact is the supported adapter build.
+2. Stop the server, preserve the existing VentureChat configuration and data, replace VentureChat, and remove the old CatChatScope JAR. Use a full restart, not hot reload.
+3. Copy the new configuration sections from the bundled example into the existing config as needed. Existing config files are not automatically overwritten. Verify `chatsentry-scope.private-channels` matches the actual private channels (defaults: Local and Group); Global must remain publicly moderated. No chat radius is changed. Review resolved private-command aliases.
+4. If obsolete Town/Nation/Faction routes and their old enable flags remain, rename/delete those routes and configure their intended access before starting. The plugin refuses to silently expose them as ordinary channels.
+5. Set `chat-history.realm`. New history defaults to Global only and private logging off. Enable the dashboard explicitly if wanted, restart, and use `dashboard-token.txt` through loopback or a secured tunnel/access proxy. Keep that credential private.
+6. Confirm both ChatSentry adapters report AVAILABLE. Exercise `/chatsettings`, PM toggle, offline unignore, filter-on/filter-off recipients, public enforcement, and the existing item-sharing plugin with real clients before wider rollout.
 
-## Next steps
-
-1. Read the draft PR and any review feedback; inspect current branch state before changing anything.
-2. Finish the delivery/rollout documentation review. Confirm defaults and coverage are presented consistently across roadmap, filtering and history docs.
-3. If desired, run the saved disposable Paper probe with the exact final rebuilt archive and verify persisted preferences on a second startup. The last tested classes match the saved artifact; the final archive differed only in packaging/resource line endings.
-4. Validate actual realm configuration and a real client session before deployment: private channel names/range, aliases, item sharing, Parties if used, and dashboard access. Remove old CatChatScope before enabling the replacement; do not hot-reload.
-5. Mark the PR ready when this remaining review is complete and report the JAR/PR. Merge/live deployment remains a separate action.
+Parties-owned delivery has no per-recipient filter hook; do not treat its messages as personally filtered. One dashboard runs per realm. These are documented boundaries, not unfinished native VentureChat features.
 
 ## Local continuity
 
-The task workspace retains `work/venturechat-upgrade` (this checkout), `work/paper-chat-upgrade-smoke` (stopped disposable server and logs), `work/runtime-probe` (probe classes/source), and `work/m2` (repaired Maven cache). The supplied ChatSentry and CatChatScope JARs remain external attachments and are not in Git. Latest verification console was `/tmp/venturechat-release-verify.log`; durable test/validation evidence is summarized here.
+The task workspace retains `work/venturechat-upgrade` (checkout and built JAR), `work/paper-chat-upgrade-smoke` (stopped disposable server/logs), `work/runtime-probe`, and `work/m2` (repaired Maven cache). Supplied proprietary JARs are external attachments, not committed. Probe source is saved under `docs/fixtures/paper` and deliberately shuts down its disposable server.
 
-All worker agents are stopped. No scheduled continuation was created; resume this draft when convenient.
+Future work should begin with current PR feedback. Repeat tests only for changed code or unresolved concerns; there is no need to repeat the initial investigation or benchmark for documentation edits.

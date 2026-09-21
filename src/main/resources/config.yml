@@ -381,7 +381,9 @@ channels:
     permissions: None
     speak_permissions: None
     channel_prefix: '&f[&eLocal&f]'
-    format: '{venturechat_channel_prefix} {vault_prefix}{player_displayname}&e:'# Player-facing preferences. /chatsettings works alongside existing commands.
+    format: '{venturechat_channel_prefix} {vault_prefix}{player_displayname}&e:'
+
+# Player-facing preferences. /chatsettings works alongside existing commands.
 chat-settings:
   locked-channels: [Global]
 private-messages:

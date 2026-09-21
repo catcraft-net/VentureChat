@@ -1,13 +1,13 @@
 # VentureChat 4.1 validation checkpoint
 
-Status: implementation saved for later continuation at the owner's request on 2026-09-21. Draft PR; no merge or live deployment.
+Status: resumed and prepared for PR review. No merge or live deployment.
 
 ## Completed evidence
 
 - Java 25 Maven `verify`: **97 tests, 0 failures, 0 errors, 0 skipped**, including opt-in exact ChatSentry tests and the 50,000-player storage benchmark.
 - Command: `mvn -Dmaven.repo.local=../m2 -Dventurechat.benchmark=true -Dchatsentry.test.jar=/absolute/path/to/2-ChatSentry-5.6.7.jar verify` with Java 25. Proprietary JARs are not committed.
 - ChatSentry input SHA-256: `67a5a5766360255c8c563d688d5ce5b2bac90387ff4745cff796e15582cce92b`.
-- Packaged JAR SHA-256: `665e3fca2c0101a394c0b494b292224b4ccda11d1ae5fd9f0f67411fc0180e26`. Build timestamps may change archive hashes on rebuild.
+- Previously validated JAR SHA-256: `665e3fca2c0101a394c0b494b292224b4ccda11d1ae5fd9f0f67411fc0180e26`. Build timestamps may change archive hashes on rebuild.
 - All packaged `.class` entries match the artifact used by the disposable Paper probe; subsequent edits only restored original line endings and updated documentation.
 - `git diff --check` clean before saving.
 - Independent review findings were fixed: PM-toggle permission, disabled-command namespace, bounded offline-name lookup, retention catch-up, actual resolved command ownership. Final readiness and shutdown-generation review found no remaining material issue.
@@ -38,3 +38,11 @@ Separate tests exercise actual SQLite lock failures/recovery, overflow, retentio
 - Existing commandspy, legacy logs, and other plugins retain separate privacy policies; the new feature suppresses VentureChat PM-spy delivery for hidden PMs.
 - Bounded best-effort logging can drop records on overload/crash/shutdown deadline; diagnostics expose gaps. Finite tests do not establish zero lag or zero leaks under every production condition.
 - Maven's ProtocolLib repository returned HTML instead of a JAR during setup. The task cache was repaired using an existing valid 5.4.0 compile artifact. Check archive integrity in a fresh environment; production smoke used the actual 5.5.0 snapshot above.
+
+## Resume verification
+
+No production Java changed during the final documentation review. Corrected the documented `personal-filter.additional-literals` key and separated a joined YAML comment from the Local format line. Both original resources parsed successfully; the change is readability only. Two focused `BundledConfigurationTest` checks verify both bundled YAML resources, retained Local formatting, and public-only/private-off/dashboard-off defaults. The prior 97-test suite and Paper probe were not repeated.
+
+Command: `mvn -Dmaven.repo.local=../m2 -Dtest=BundledConfigurationTest package` with Java 25. Final archive integrity and unchanged compiled classes are checked against the previously tested artifact.
+
+Final delivered JAR SHA-256: `35db3456100ab3a77faf9cd28f212ff749aec1db5a0ec235600d39bf89bc1c73`. Archive CRC check passed; all 338 compiled class entries are identical to the previously validated JAR.

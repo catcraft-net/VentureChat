@@ -42,4 +42,4 @@ Spec: `docs/venturechat-roadmap.md` and `docs/catchatscope-review.md`, as clarif
 - [x] Filter/scope integration.
 - [x] Preferences/menu/delivery.
 - [x] Full suite, disposable Paper validation and independent review; live rollout checks remain separately documented.
-- [ ] Final ready-for-review delivery paused by user; saved as draft PR. See docs/CONTINUE-HERE.md.
+- [x] Resumed documentation/configuration review and focused validation; PR and built artifact delivered for review. See docs/CONTINUE-HERE.md for rollout instructions.

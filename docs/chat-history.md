@@ -21,7 +21,7 @@ dashboard.close();
 history.close();
 ```
 
-Create one event ID per message; reuse it on any retry or forwarding. The database has a unique event ID and uses `ON CONFLICT(id) DO NOTHING`, including retries after ambiguous commit outcomes. Sender UUID and name are preserved separately. `record` returning false means disabled/not running, excluded by policy, or rejected because the queue is full. Only queue overflow contributes to dropped metrics; deliberately excluded content is not a gap.
+Create one event ID per message; reuse it on any retry or forwarding. The database has a unique event ID and uses `ON CONFLICT(id) DO NOTHING`, including retries after ambiguous commit outcomes. Sender UUID and name are preserved separately. `record` returning false means disabled/not running, excluded by policy, or rejected because the queue is full. Queue overflow and undrained shutdown entries contribute to dropped metrics; deliberately excluded content is not a gap.
 
 The shipped `chat-history` config enables public history with realm `server`, channel allowlist `[Global]`, private logging false, 30 days retention, 4096 queue slots, batch size 100, and 2000 ms shutdown drain. Set a distinct realm name in each installation. The dashboard independently defaults disabled; set `chat-history.dashboard.enabled: true` and restart. It always binds `127.0.0.1`, uses configurable port 8765, and generates a 32-byte random credential in `dashboard-token.txt` (owner-only permissions where supported). History failures/drops produce a rate-limited console warning even when the dashboard is disabled.
 

@@ -7,7 +7,7 @@ The saved `personalFilter` preference applies after ordinary recipient eligibili
 ```java
 var filter = new PersonalFilterService(
     ChatSentry567Detector.connect(chatSentryPlugin),
-    config.getStringList("personal-filter.literal-rules"),
+    config.getStringList("personal-filter.additional-literals"),
     plugin.getLogger()::warning);
 FilterDecision decision = filter.evaluate(message);
 boolean hide = PersonalFilterService.shouldHide(decision, senderUuid, recipientUuid, optedIn);
