@@ -105,8 +105,19 @@ public final class ChatFeatures implements AutoCloseable {
     public static FilterDecision evaluate(MineverseChat plugin,String message) {
         var features=plugin.getChatFeatures(); return features==null ? FilterDecision.UNAVAILABLE : features.evaluate(message);
     }
-    public static boolean hide(FilterDecision decision,MineverseChatPlayer sender,MineverseChatPlayer recipient) {
-        return recipient!=null && PersonalFilterService.shouldHide(decision,sender.getUUID(),recipient.getUUID(),recipient.hasPersonalFilter());
+    public CensorResult censor(String message) {
+        var current = filter;
+        return current == null ? new CensorResult(message, message, FilterDecision.UNAVAILABLE) : current.censor(message);
+    }
+    public static CensorResult censor(MineverseChat plugin, String message) {
+        var features = plugin.getChatFeatures();
+        return features == null ? new CensorResult(message, message, FilterDecision.UNAVAILABLE) : features.censor(message);
+    }
+    public static boolean filtered(MineverseChatPlayer sender, MineverseChatPlayer recipient) {
+        return recipient != null && recipient.hasPersonalFilter() && !java.util.Objects.equals(sender.getUUID(), recipient.getUUID());
+    }
+    public static String incoming(String formatted, String body, CensorResult result, MineverseChatPlayer sender, MineverseChatPlayer recipient) {
+        return filtered(sender, recipient) ? CensoredChat.suffix(formatted, body, result) : formatted;
     }
     public static void record(MineverseChat plugin,MineverseChatPlayer sender,String channel,UUID recipient,String message,boolean privateMessage) {
         var features=plugin.getChatFeatures();

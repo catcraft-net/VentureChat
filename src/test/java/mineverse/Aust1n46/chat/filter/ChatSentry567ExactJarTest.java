@@ -45,9 +45,41 @@ public class ChatSentry567ExactJarTest {
             rules.add("exactcontains::abcdef");
             rules.add("regex::xyz[ab]");
             rules.add("sample phrase");
+            rules.add("nocensor::exact::forbidden");
+            rules.add("exact::bad");
+            rules.add("badword");
             for (boolean censor : new boolean[]{false, true}) {
                 type.getField("bu").setBoolean(live, censor);
                 var detector = ChatSentry567Detector.snapshot(live, null);
+                long started = System.nanoTime();
+                assertCensored(detector, "  Hello, EXAMPLE! Friendly bad.  ", "  Hello, *******! Friendly ***.  ");
+                assertCensored(detector, "xxabcdefxx", "**********");
+                assertCensored(detector, "say xyza please", "say **** please");
+                assertCensored(detector, "a sample phrase here", "a ****** ****** here");
+                assertCensored(detector, "forbidden", "*********");
+                assertCensored(detector, "example and example", "******* and *******");
+                assertCensored(detector, "friendly greeting", "friendly greeting");
+                assertCensored(detector, "bad examples", "*** examples");
+                assertCensored(detector, "example notbad examples", "******* notbad examples");
+                assertCensored(detector, "hello badword, friend", "hello *******, friend");
+                assertEquals(censor, type.getField("bu").getBoolean(live));
+                System.out.println("Exact-JAR censor fixture (10 messages): " + (System.nanoTime() - started) / 1_000_000 + " ms");
+                var counted = Mockito.spy(detector);
+                assertCensored(counted, "hello example, bad!", "hello *******, ***!");
+                int typicalCalls = Mockito.mockingDetails(counted).getInvocations().stream()
+                        .filter(invocation -> invocation.getMethod().getName().equals("evaluate")).toList().size();
+                assertTrue(typicalCalls > 1 && typicalCalls <= 128);
+                System.out.println("Two-word censor native probes: " + typicalCalls);
+                Mockito.clearInvocations(counted);
+                String crowded = "example ".repeat(80);
+                CensorResult limited = counted.censor(crowded);
+                assertEquals(FilterDecision.UNAVAILABLE, limited.decision());
+                assertEquals(crowded, limited.censored());
+                Mockito.verify(counted, Mockito.atMost(128)).evaluate(Mockito.anyString());
+                Mockito.clearInvocations(counted);
+                String oversized = "example" + " ".repeat(2048);
+                assertEquals(FilterDecision.UNAVAILABLE, counted.censor(oversized).decision());
+                Mockito.verify(counted, Mockito.never()).evaluate(Mockito.anyString());
                 var greeting = detector.evaluate("friendly greeting");
                 assertEquals(detector.status(), FilterDecision.CLEAN, greeting);
                 assertEquals(FilterDecision.MATCH, detector.evaluate("EXAMPLE"));
@@ -80,5 +112,11 @@ public class ChatSentry567ExactJarTest {
             bukkit.verifyNoMoreInteractions();
             Mockito.verifyNoInteractions(main);
         }
+    }
+    private static void assertCensored(ChatSentry567Detector detector, String original, String expected) {
+        CensorResult result = detector.censor(original);
+        assertEquals(detector.status(), expected, result.censored());
+        assertEquals(original, result.original());
+        assertEquals(original.length(), result.censored().length());
     }
 }

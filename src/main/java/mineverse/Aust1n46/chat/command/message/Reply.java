@@ -51,8 +51,7 @@ public class Reply extends Command {
 				if (args.length > 0) {
 					for (int r = 0; r < args.length; r++)
 						msg += " " + args[r];
-					var personalDecision = ChatFeatures.evaluate(plugin, msg);
-if (mcp.hasFilter() && ChatFeatures.legacyPrivateFilter(plugin)) {
+					if (mcp.hasFilter() && ChatFeatures.legacyPrivateFilter(plugin)) {
 						msg = Format.FilterChat(msg);
 					}
 					if (mcp.getPlayer().hasPermission("venturechat.color.legacy")) {
@@ -74,23 +73,24 @@ if (mcp.hasFilter() && ChatFeatures.legacyPrivateFilter(plugin)) {
 					echo = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(player.getPlayer(), echo.replaceAll("receiver_", ""))) + msg;
 					spy = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(player.getPlayer(), spy.replaceAll("receiver_", ""))) + msg;
 
-					if (ignored || ChatFeatures.hide(personalDecision, mcp, player)) {
+					if (ignored) {
 						PrivateMessages.send(plugin, mcp.getPlayer(), echo, player.getName());
 						return true;
 					}
 
+					var personalResult = ChatFeatures.censor(plugin, org.bukkit.ChatColor.stripColor(msg));
 					if (!mcp.getPlayer().hasPermission("venturechat.spy.override")) {
 						for (MineverseChatPlayer p : MineverseChatAPI.getOnlineMineverseChatPlayers()) {
 							if (p.getName().equals(mcp.getName()) || p.getName().equals(player.getName())) {
 								continue;
 							}
 							if (p.isSpy()) {
-								p.getPlayer().sendMessage(spy);
+								p.getPlayer().sendMessage(ChatFeatures.incoming(spy, msg, personalResult, mcp, p));
 							}
 						}
 					}
-					PrivateMessages.send(plugin, player.getPlayer(), send, mcp.getName());
-				ChatFeatures.record(plugin, mcp, "DirectMessage", player.getUUID(), msg, true);
+					PrivateMessages.send(plugin, player.getPlayer(), ChatFeatures.incoming(send, msg, personalResult, mcp, player), mcp.getName());
+					ChatFeatures.record(plugin, mcp, "DirectMessage", player.getUUID(), msg, true);
 					PrivateMessages.send(plugin, mcp.getPlayer(), echo, player.getName());
 					if (player.hasNotifications()) {
 						Format.playMessageSound(player);

@@ -95,6 +95,9 @@ public final class ChatSentry567Detector implements PersonalFilterService.Detect
             else if (value instanceof HashMap<?, ?> map) value = new HashMap<>(map);
             field.set(copy, value);
         }
+        // Never enter the native censor helper: it recurses, trims text and may return empty.
+        // Only this detached detector copy is changed; the live global setting is untouched.
+        type.getField("bu").setBoolean(copy, false);
         Class<?> contextType = Class.forName("xuNkC8", true, type.getClassLoader());
         Object chat = Arrays.stream(contextType.getEnumConstants()).filter(v -> v.toString().equals("CHAT")).findFirst().orElseThrow();
         Method method = type.getMethod("a", Player.class, String.class, boolean.class, contextType);
@@ -117,6 +120,87 @@ public final class ChatSentry567Detector implements PersonalFilterService.Detect
             failure = "detector invocation failed (" + cause.getClass().getSimpleName() + "); restart to reconnect";
             return FilterDecision.UNAVAILABLE;
         }
+    }
+
+    private static final int MAX_CENSOR_LENGTH = 2048;
+    private static final int MAX_CENSOR_PROBES = 128;
+
+    /** Infer bounded matching intervals using the reviewed detector as the sole rule oracle. */
+    @Override public synchronized CensorResult censor(String message) {
+        if (message == null) throw new NullPointerException("message");
+        if (message.length() > MAX_CENSOR_LENGTH)
+            return new CensorResult(message, message, FilterDecision.UNAVAILABLE);
+        int[] probes = {0};
+        FilterDecision initial = evaluate(message);
+        probes[0]++;
+        if (initial != FilterDecision.MATCH) return new CensorResult(message, message, initial);
+        char[] masked = message.toCharArray();
+        var words = new ArrayList<int[]>();
+        for (int i = 0; i < message.length();) {
+            if (Character.isWhitespace(message.charAt(i))) { i++; continue; }
+            int start = i++;
+            while (i < message.length() && !Character.isWhitespace(message.charAt(i))) i++;
+            words.add(new int[]{start, i});
+        }
+        var pending = new java.util.ArrayDeque<int[]>();
+        if (!words.isEmpty()) pending.add(new int[]{0, words.size()});
+        boolean first = true;
+        try {
+            while (!pending.isEmpty()) {
+                int[] range = pending.removeFirst();
+                int start = range[0], end = range[1];
+                if (!first && probe(wordSlice(message, words, start, end), probes) != FilterDecision.MATCH) continue;
+                first = false;
+                // Only trim complete words: character cuts can invent an exact match inside
+                // an innocent word, or leave part of a fuzzy-matched word visible.
+                int low = start, high = end;
+                while (low + 1 < high) {
+                    int mid = (low + high) >>> 1;
+                    if (probe(wordSlice(message, words, mid, end), probes) == FilterDecision.MATCH) low = mid;
+                    else high = mid;
+                }
+                int matchStart = low;
+                low = matchStart; high = end;
+                while (low + 1 < high) {
+                    int mid = (low + high) >>> 1;
+                    if (probe(wordSlice(message, words, matchStart, mid), probes) == FilterDecision.MATCH) high = mid;
+                    else low = mid;
+                }
+                int matchEnd = high;
+                for (int word = matchStart; word < matchEnd; word++) {
+                    int from = words.get(word)[0], to = words.get(word)[1];
+                    int firstLetter = from, lastLetter = to;
+                    while (firstLetter < to && !Character.isLetterOrDigit(message.codePointAt(firstLetter)))
+                        firstLetter += Character.charCount(message.codePointAt(firstLetter));
+                    while (lastLetter > firstLetter && !Character.isLetterOrDigit(message.codePointBefore(lastLetter)))
+                        lastLetter -= Character.charCount(message.codePointBefore(lastLetter));
+                    // Keep outer punctuation/emoji, but a symbols-only matched word is masked too.
+                    if (firstLetter < lastLetter) { from = firstLetter; to = lastLetter; }
+                    Arrays.fill(masked, from, to, '*');
+                }
+                if (start < matchStart) pending.addLast(new int[]{start, matchStart});
+                if (matchEnd < end) pending.addLast(new int[]{matchEnd, end});
+            }
+            return new CensorResult(message, new String(masked), FilterDecision.MATCH);
+        } catch (ProbeUnavailable ex) {
+            // Never present a partial mask as full protection or erase the whole message.
+            return new CensorResult(message, message, FilterDecision.UNAVAILABLE);
+        }
+    }
+
+    private static String wordSlice(String message, ArrayList<int[]> words, int from, int to) {
+        return message.substring(words.get(from)[0], words.get(to - 1)[1]);
+    }
+
+    private FilterDecision probe(String message, int[] probes) {
+        if (++probes[0] > MAX_CENSOR_PROBES) throw new ProbeUnavailable();
+        FilterDecision decision = evaluate(message);
+        if (decision == FilterDecision.UNAVAILABLE) throw new ProbeUnavailable();
+        return decision;
+    }
+
+    private static final class ProbeUnavailable extends RuntimeException {
+        private static final long serialVersionUID = 1L;
     }
 
     @Override public String status() {

@@ -4,7 +4,9 @@ Implementation and documentation review are complete. PR #5 is prepared for revi
 
 Branch: `feat/player-chat-controls-and-history`; base: `master` at `efd818e3b3fb7c5b8a140fa2dedec1e4909294e4`.
 
-The prior full build passed 97 tests, including exact ChatSentry fixtures and the storage benchmark. Disposable Paper checks and independent review passed. On resuming, only two focused bundled-configuration checks were run for the resource/documentation tidy-up. No production Java changed. See `validation-4.1.md` for precise evidence and boundaries.
+Version 4.1.1 adds whole-word personal censoring and polished settings/skin profiles. See `validation-4.1.1.md` for the focused patch checks.
+
+The prior 4.1.0 full build passed 97 tests, including exact ChatSentry fixtures and the storage benchmark. Disposable Paper checks and independent review passed. For the earlier documentation resume, only two focused bundled-configuration checks were run for the resource/documentation tidy-up. No production Java changed in that earlier documentation-only resume. See `validation-4.1.md` for precise evidence and boundaries.
 
 ## Configuration before a test-realm rollout
 
@@ -21,4 +23,4 @@ Parties-owned delivery has no per-recipient filter hook; do not treat its messag
 
 The task workspace retains `work/venturechat-upgrade` (checkout and built JAR), `work/paper-chat-upgrade-smoke` (stopped disposable server/logs), `work/runtime-probe`, and `work/m2` (repaired Maven cache). Supplied proprietary JARs are external attachments, not committed. Probe source is saved under `docs/fixtures/paper` and deliberately shuts down its disposable server.
 
-Future work should begin with current PR feedback. Repeat tests only for changed code or unresolved concerns; there is no need to repeat the initial investigation or benchmark for documentation edits.
+Future work should begin with current PR feedback and real-client skin/item-sharing checks. Repeat tests only for changed code or unresolved concerns; there is no need to repeat the initial investigation or benchmark for documentation edits.

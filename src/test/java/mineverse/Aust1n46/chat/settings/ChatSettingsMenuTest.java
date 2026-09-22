@@ -51,6 +51,24 @@ public class ChatSettingsMenuTest {
         }
         verify(player,never()).openInventory(any(Inventory.class));
     }
+    @Test public void staleLookupContinuesOnCurrentIgnoredPlayersPage() throws Exception {
+        ChatSettingsMenu.resetNameLookups();
+        var plugin=mock(MineverseChat.class);when(plugin.isEnabled()).thenReturn(true);
+        var menu=new ChatSettingsMenu(plugin);var owner=UUID.randomUUID();var ignored=UUID.randomUUID();
+        var old=new ChatSettingsMenu.View(owner,ChatSettingsMenu.Page.IGNORES,0);old.inventory=mock(Inventory.class);
+        var current=new ChatSettingsMenu.View(owner,ChatSettingsMenu.Page.IGNORES,45);current.inventory=mock(Inventory.class);
+        current.actions.put(0,new ChatSettingsMenu.Action("unignore",ignored.toString()));
+        when(current.inventory.getHolder()).thenReturn(current);
+        var player=mock(Player.class);when(player.getUniqueId()).thenReturn(owner);when(player.isOnline()).thenReturn(true);
+        var open=mock(InventoryView.class);when(open.getTopInventory()).thenReturn(current.inventory);when(player.getOpenInventory()).thenReturn(open);
+        var refresh=ChatSettingsMenu.class.getDeclaredMethod("refreshNames",Player.class,ChatSettingsMenu.View.class,java.util.List.class,int.class);
+        refresh.setAccessible(true);
+        try(var database=mockStatic(mineverse.Aust1n46.chat.database.PlayerData.class)) {
+            database.when(()->mineverse.Aust1n46.chat.database.PlayerData.findByUuidAsync(ignored)).thenReturn(new java.util.concurrent.CompletableFuture<>());
+            refresh.invoke(menu,player,old,java.util.List.of(ignored),0);
+            database.verify(()->mineverse.Aust1n46.chat.database.PlayerData.findByUuidAsync(ignored));
+        } finally {ChatSettingsMenu.resetNameLookups();}
+    }
     @Test public void explicitReplyLinkDoesNotUseMutableReplyTarget() {
         var component=PrivateMessages.replyLink("Alice: hello","Alice");
         org.junit.Assert.assertEquals(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/msg Alice "),component.clickEvent());

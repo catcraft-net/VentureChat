@@ -1,7 +1,6 @@
 package mineverse.Aust1n46.chat.filter;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -11,6 +10,7 @@ public final class PersonalFilterService {
     public interface Detector {
         FilterDecision evaluate(String message);
         String status();
+        default CensorResult censor(String message) { return new CensorResult(message, message, evaluate(message)); }
     }
     private final Detector detector;
     private final List<String> literalRules;
@@ -20,7 +20,7 @@ public final class PersonalFilterService {
     public PersonalFilterService(Detector detector, List<String> literalRules, Consumer<String> diagnostic) {
         this.detector = Objects.requireNonNull(detector);
         this.literalRules = literalRules.stream().filter(Objects::nonNull).map(String::strip)
-                .filter(s -> !s.isEmpty()).map(s -> s.toLowerCase(Locale.ROOT)).distinct().toList();
+                .filter(s -> !s.isEmpty()).distinct().toList();
         this.diagnostic = Objects.requireNonNull(diagnostic);
         reportStatus();
     }
@@ -30,10 +30,29 @@ public final class PersonalFilterService {
         FilterDecision decision = detector.evaluate(message);
         reportStatus();
         if (decision == FilterDecision.MATCH) return decision;
-        String normalized = message.toLowerCase(Locale.ROOT);
-        if (literalRules.stream().anyMatch(normalized::contains)) return FilterDecision.MATCH;
+        for (String rule : literalRules)
+            for (int start = 0; start <= message.length() - rule.length(); start++)
+                if (message.regionMatches(true, start, rule, 0, rule.length())) return FilterDecision.MATCH;
         // A local non-match never implies the configured strict detector was available.
         return decision;
+    }
+
+    public CensorResult censor(String message) {
+        Objects.requireNonNull(message);
+        CensorResult result = detector.censor(message);
+        reportStatus();
+        char[] masked = result.censored().toCharArray();
+        boolean literalMatch = false;
+        // regionMatches avoids lowercasing the message, which can change UTF-16 offsets.
+        for (String rule : literalRules) {
+            for (int start = 0; start <= message.length() - rule.length(); start++) {
+                if (message.regionMatches(true, start, rule, 0, rule.length())) {
+                    literalMatch = true;
+                    java.util.Arrays.fill(masked, start, start + rule.length(), '*');
+                }
+            }
+        }
+        return new CensorResult(message, new String(masked), literalMatch ? FilterDecision.MATCH : result.decision());
     }
 
     public String status() { return detector.status() + (literalRules.isEmpty() ? "" : "; additional literal rules: " + literalRules.size()); }

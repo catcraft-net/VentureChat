@@ -15,6 +15,7 @@ import mineverse.Aust1n46.chat.filter.*;
 import mineverse.Aust1n46.chat.utilities.Format;
 public class Probe extends JavaPlugin {
  final UUID id=UUID.fromString("00000000-0000-0000-0000-000000009901"), ignored=UUID.fromString("00000000-0000-0000-0000-000000009902");
+ com.destroystokyo.paper.profile.PlayerProfile playerProfile;
  Inventory top;Player player;InventoryView view;MineverseChatPlayer state;ChatSettingsMenu menu;MineverseChat vc;
  public void onEnable(){later(100,this::start);}
  void later(long ticks,Runnable action){Bukkit.getScheduler().runTaskLater(this,()->{try{action.run();}catch(Throwable e){e.printStackTrace();write("FAIL "+e);Bukkit.shutdown();}},ticks);}
@@ -25,8 +26,13 @@ public class Probe extends JavaPlugin {
   require(vc.getChatFeatures().scopeStatus().startsWith("AVAILABLE"),"scope available");
   require(vc.getChatFeatures().evaluate("badword")==FilterDecision.MATCH,"initialized ChatSentry rule match");
   require(vc.getChatFeatures().evaluate("a pleasant afternoon")==FilterDecision.CLEAN,"clean ChatSentry rule result");
+  require(vc.getChatFeatures().censor("hello badword, friend").censored().equals("hello *******, friend"),"initialized ChatSentry censors only matching word");
+  playerProfile=Bukkit.createProfile(id,"FixturePlayer");
+  String texture=Base64.getEncoder().encodeToString("{\"textures\":{\"SKIN\":{\"url\":\"http://textures.minecraft.net/texture/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}}}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+  playerProfile.setProperty(new com.destroystokyo.paper.profile.ProfileProperty("textures",texture));
   player=(Player)Proxy.newProxyInstance(getClassLoader(),new Class[]{Player.class},(p,m,a)->switch(m.getName()){
    case "getUniqueId"->id;case "getName","getDisplayName"->"FixturePlayer";case "isOnline","hasPermission","canSee"->true;
+   case "getPlayerProfile"->playerProfile;
    case "getWorld"->Bukkit.getWorlds().getFirst();case "getLocation"->Bukkit.getWorlds().getFirst().getSpawnLocation();
    case "getOpenInventory"->view;case "openInventory"->{top=(Inventory)a[0];yield view;}
    case "hashCode"->id.hashCode();case "equals"->p==a[0];case "toString"->"FixturePlayer";default->fallback(m.getReturnType());});
@@ -36,7 +42,11 @@ public class Probe extends JavaPlugin {
   state=new MineverseChatPlayer(id,"FixturePlayer");state.setOnline(true);var f=MineverseChatPlayer.class.getDeclaredField("player");f.setAccessible(true);f.set(state,player);
   MineverseChatAPI.addMineverseChatPlayerToMap(state);MineverseChatAPI.addMineverseChatOnlinePlayerToMap(state);state.addIgnore(ignored);
   menu=new ChatSettingsMenu(vc);menu.open(player);require(top.getSize()==54 && top.getItem(15).getType()==Material.SHIELD,"real server menu items");
-  click(15);later(2,()->{require(!state.hasPersonalFilter(),"filter click persisted preference");click(11);later(2,()->{
+  var head=(org.bukkit.inventory.meta.SkullMeta)top.getItem(29).getItemMeta();
+  require(head.getPlayerProfile()!=null && head.getPlayerProfile().getId().equals(id) && head.getPlayerProfile().hasProperty("textures"),"viewer head keeps supplied skin texture");
+  require(top.getItem(11).getItemMeta().getDisplayName().contains(ChatColor.GREEN.toString()+ChatColor.BOLD+"ON"),"enabled status is bold green");
+  require(top.getItem(15).getItemMeta().getLore().stream().noneMatch(line->line.contains("ChatSentry") || line.contains("punish") || line.contains("bypass")),"filter lore is player facing");
+  click(15);later(2,()->{require(!state.hasPersonalFilter(),"filter click persisted preference");require(top.getItem(15).getItemMeta().getDisplayName().contains(ChatColor.RED.toString()+ChatColor.BOLD+"OFF"),"disabled status is bold red");click(11);later(2,()->{
    require(!state.getMessageToggle(),"PM click toggled");click(29);later(2,()->{
     require(top.getItem(0).getType()==Material.PLAYER_HEAD,"offline ignored player displayed");click(0);later(2,()->finish());
    });

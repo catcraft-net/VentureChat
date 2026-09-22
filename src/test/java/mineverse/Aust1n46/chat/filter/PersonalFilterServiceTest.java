@@ -23,4 +23,19 @@ public class PersonalFilterServiceTest {
         assertFalse(PersonalFilterService.shouldHide(FilterDecision.UNAVAILABLE, sender, recipient, true));
         assertFalse(PersonalFilterService.shouldHide(FilterDecision.CLEAN, sender, recipient, true));
     }
+    @Test public void censorCombinesLiteralMatchesAndPreservesUnmatchedText() {
+        var filter = new PersonalFilterService(PersonalFilterService.unavailable("missing"),
+                List.of("example", "bad", "İ"), status -> {});
+        CensorResult result = filter.censor("  EXAMPLE, bad! İ 😀  ");
+        assertEquals("  *******, ***! * 😀  ", result.censored());
+        assertEquals("  EXAMPLE, bad! İ 😀  ", result.original());
+        assertEquals(FilterDecision.MATCH, result.decision());
+        assertTrue(result.changed());
+        assertEquals(FilterDecision.UNAVAILABLE, filter.censor("hello").decision());
+        assertEquals("hello", filter.censor("hello").censored());
+    }
+    @Test public void resultRejectsLengthOrNonMaskChanges() {
+        assertThrows(IllegalArgumentException.class, () -> new CensorResult("bad", "", FilterDecision.MATCH));
+        assertThrows(IllegalArgumentException.class, () -> new CensorResult("bad", "cat", FilterDecision.MATCH));
+    }
 }

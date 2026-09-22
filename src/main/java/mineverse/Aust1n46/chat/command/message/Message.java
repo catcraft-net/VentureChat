@@ -58,8 +58,7 @@ public class Message extends Command {
 				for (int r = 1; r < args.length; r++) {
 					msg += " " + args[r];
 				}
-				var personalDecision = ChatFeatures.evaluate(plugin, msg);
-if (mcp.hasFilter() && ChatFeatures.legacyPrivateFilter(plugin)) {
+				if (mcp.hasFilter() && ChatFeatures.legacyPrivateFilter(plugin)) {
 					msg = Format.FilterChat(msg);
 				}
 				if (mcp.getPlayer().hasPermission("venturechat.color.legacy")) {
@@ -80,15 +79,16 @@ if (mcp.hasFilter() && ChatFeatures.legacyPrivateFilter(plugin)) {
 				echo = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(player.getPlayer(), echo.replaceAll("receiver_", ""))) + msg;
 				spy = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(player.getPlayer(), spy.replaceAll("receiver_", ""))) + msg;
 
-				if (ignored || ChatFeatures.hide(personalDecision, mcp, player)) {
+				if (ignored) {
 					mcp.setReplyPlayer(player.getUUID());
 					PrivateMessages.send(plugin, mcp.getPlayer(), echo, player.getName());
 					return true;
 				}
 
+				var personalResult = ChatFeatures.censor(plugin, org.bukkit.ChatColor.stripColor(msg));
 				player.setReplyPlayer(mcp.getUUID());
 				mcp.setReplyPlayer(player.getUUID());
-				PrivateMessages.send(plugin, player.getPlayer(), send, mcp.getName());
+				PrivateMessages.send(plugin, player.getPlayer(), ChatFeatures.incoming(send, msg, personalResult, mcp, player), mcp.getName());
 				ChatFeatures.record(plugin, mcp, "DirectMessage", player.getUUID(), msg, true);
 				PrivateMessages.send(plugin, mcp.getPlayer(), echo, player.getName());
 				if (player.hasNotifications()) {
@@ -100,7 +100,7 @@ if (mcp.hasFilter() && ChatFeatures.legacyPrivateFilter(plugin)) {
 							continue;
 						}
 						if (sp.isSpy()) {
-							sp.getPlayer().sendMessage(spy);
+							sp.getPlayer().sendMessage(ChatFeatures.incoming(spy, msg, personalResult, mcp, sp));
 						}
 					}
 				}
