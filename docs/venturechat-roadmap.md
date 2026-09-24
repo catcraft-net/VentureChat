@@ -19,7 +19,6 @@ Updated: 2026-09-24. Implementation approved by the server owner; changes target
 | VC-13 | ProtocolLib/Vault/PlaceholderAPI | Retained required dependencies. |
 | VC-14 | CatChatScope replacement | Exact-build event-local ChatSentry word-filter exemption; explicit private-channel allowlist, resolved-command validation, no player-wide permission mutation. Remove old CatChatScope JAR and restart before using replacement. |
 | VC-15 | Parties | Actual cached chat-mode reader where compatible. Parties-owned delivery lacks per-recipient hooks; a companion Parties change is needed for personal filtering there. VentureChat channels/native parties/DMs are covered. |
-
 | VC-16 | EssentialsX mail | Optional public-event bridge blocks new mail from VentureChat-ignored senders, online or offline. Unignore restores future mail; console mail and existing mail remain unchanged. See [mail integration](essentials-mail.md). |
 
 ## Defaults and deployment checkpoints
