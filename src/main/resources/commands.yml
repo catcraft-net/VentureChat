@@ -3,6 +3,9 @@ Version: 3.3.1
 # Restart server after editing this file!!!
 # Restart server after editing this file!!!
 commands:
+  chatsettings:
+    enabled: true
+    aliases: []
     message:
         aliases: [vmessage,msg,tell,whisper,pm]
         enabled: true

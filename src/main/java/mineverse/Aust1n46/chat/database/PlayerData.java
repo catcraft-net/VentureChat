@@ -99,7 +99,7 @@ public final class PlayerData {
             state = new PlayerStateSnapshot(state.uuid(), currentName, state.currentChannel(), state.ignores(),
                     state.listening(), state.mutes(), state.blockedCommands(), state.host(), state.party(),
                     state.filter(), state.notifications(), state.jsonFormat(), state.spy(), state.commandSpy(),
-                    state.rangedSpy(), state.messageToggle(), state.revision() + 1L);
+                    state.rangedSpy(), state.messageToggle(), state.personalFilter(), state.revision() + 1L);
         }
         return toPlayer(state);
     }
@@ -260,6 +260,7 @@ public final class PlayerData {
                 player.hasCommandSpy(),
                 player.getRangedSpy(),
                 player.getMessageToggle(),
+                player.hasPersonalFilter(),
                 player.getStorageRevision());
     }
 
@@ -283,6 +284,7 @@ public final class PlayerData {
                 new HashSet<>(state.ignores()), listening, mutes, new HashSet<>(state.blockedCommands()),
                 state.host(), state.party(), state.filter(), state.notifications(), state.jsonFormat(),
                 state.spy(), state.commandSpy(), state.rangedSpy(), state.messageToggle());
+        player.setPersonalFilter(state.personalFilter());
         player.setStorageRevision(state.revision());
         player.setModified(false);
         return player;
@@ -304,6 +306,7 @@ public final class PlayerData {
                 && player.getBlockedCommands().isEmpty()
                 && !player.isHost()
                 && !player.hasParty()
+                && player.hasPersonalFilter()
                 && player.hasFilter()
                 && player.hasNotifications()
                 && !player.isSpy()

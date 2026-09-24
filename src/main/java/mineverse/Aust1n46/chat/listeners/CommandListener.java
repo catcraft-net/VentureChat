@@ -26,7 +26,6 @@ import mineverse.Aust1n46.chat.database.Database;
 import mineverse.Aust1n46.chat.gui.GuiSlot;
 import mineverse.Aust1n46.chat.localization.LocalizedMessage;
 import mineverse.Aust1n46.chat.utilities.Format;
-import mineverse.Aust1n46.chat.versions.VersionHandler;
 
 public class CommandListener implements Listener {
 	private MineverseChat plugin = MineverseChat.getInstance();
@@ -150,15 +149,7 @@ public class CommandListener implements Listener {
 		SkullMeta skullMeta = (SkullMeta) skull.getItemMeta();
 		ChatChannel channel = ChatChannel.getChannel(ChatColor.stripColor(skullMeta.getLore().get(0)).replace("Channel: ", ""));
 		int hash = Integer.parseInt(ChatColor.stripColor(skullMeta.getLore().get(1).replace("Hash: ", "")));
-		if (VersionHandler.is1_7()) {
-			if (item.getType() == Material.BEDROCK) {
-				mcp.getPlayer().closeInventory();
-			}
-		} else {
-			if (item.getType() == Material.BARRIER) {
-				mcp.getPlayer().closeInventory();
-			}
-		}
+		if (item.getType() == Material.BARRIER) mcp.getPlayer().closeInventory();
 		for (GuiSlot g : GuiSlot.getGuiSlots()) {
 			if (g.getIcon() == item.getType() && g.getDurability() == item.getDurability() && g.getSlot() == e.getSlot()) {
 				String command = g.getCommand().replace("{channel}", channel.getName()).replace("{hash}", hash + "");

@@ -104,6 +104,22 @@ public class SqlitePlayerStateRepositoryTest {
         assertTrue(state.isDefault("Global", Set.of("Global", "Staff")));
     }
 
+    @Test
+    public void personalFilterOptOutSurvivesJsonAndSqliteWithoutDefaultPruning() throws Exception {
+        PlayerStateSnapshot defaults = PlayerStateSnapshot.defaults(UUID.randomUUID(), "Alice", "Global", Set.of("Global"), 1L);
+        String json = PlayerStateJsonCodec.canonicalJson(defaults);
+        org.json.simple.JSONObject fields = (org.json.simple.JSONObject) new org.json.simple.parser.JSONParser().parse(json);
+        fields.put("personalFilter", false);
+        PlayerStateSnapshot state = PlayerStateJsonCodec.fromCanonicalJson(fields.toJSONString());
+        assertFalse("A personal filter opt-out is customized state", state.isDefault("Global", Set.of("Global")));
+        try (SqlitePlayerStateRepository repository = new SqlitePlayerStateRepository(temporaryFolder.newFile("filter.db").toPath(), "Global", Set.of("Global"))) {
+            repository.initialize();
+            repository.save(state);
+            assertEquals(state, repository.findByUuid(state.uuid()).orElseThrow());
+            assertTrue(PlayerStateJsonCodec.canonicalJson(repository.findByUuid(state.uuid()).orElseThrow()).contains("\"personalFilter\":false"));
+        }
+    }
+
     private static PlayerStateSnapshot customized(UUID uuid, String name, long revision) {
         return new PlayerStateSnapshot(uuid, name, "Staff", Set.of(), Set.of("Global", "Staff"), Map.of(), Set.of(),
                 false, null, true, true, "Default", false, false, false, true, revision);

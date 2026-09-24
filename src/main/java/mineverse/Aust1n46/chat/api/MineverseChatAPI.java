@@ -60,6 +60,9 @@ public final class MineverseChatAPI {
         }
     }
 
+    /** Memory-only name lookup; never triggers storage or profile/network access. */
+    public static String getCachedName(UUID uuid) { return uuidNamesMap.get(uuid); }
+
     public static void clearNameMap() {
         namesMap.clear();
         uuidNamesMap.clear();

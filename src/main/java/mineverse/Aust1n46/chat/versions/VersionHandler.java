@@ -2,6 +2,13 @@ package mineverse.Aust1n46.chat.versions;
 
 import com.comphenix.protocol.utility.MinecraftVersion;
 
+/**
+ * Version-query compatibility API for external plugins. VentureChat itself targets
+ * modern Paper and no longer selects alternate implementations by server version.
+ *
+ * @deprecated Query the supported server API directly in new integrations.
+ */
+@Deprecated
 public final class VersionHandler {
 
 	public static final MinecraftVersion SERVER_VERSION = MinecraftVersion.getCurrentVersion();

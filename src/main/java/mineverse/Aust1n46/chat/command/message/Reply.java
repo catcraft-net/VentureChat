@@ -1,5 +1,7 @@
 package mineverse.Aust1n46.chat.command.message;
 
+import mineverse.Aust1n46.chat.settings.ChatFeatures;
+import mineverse.Aust1n46.chat.settings.PrivateMessages;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -49,7 +51,7 @@ public class Reply extends Command {
 				if (args.length > 0) {
 					for (int r = 0; r < args.length; r++)
 						msg += " " + args[r];
-					if (mcp.hasFilter()) {
+					if (mcp.hasFilter() && ChatFeatures.legacyPrivateFilter(plugin)) {
 						msg = Format.FilterChat(msg);
 					}
 					if (mcp.getPlayer().hasPermission("venturechat.color.legacy")) {
@@ -72,22 +74,24 @@ public class Reply extends Command {
 					spy = Format.FormatStringAll(PlaceholderAPI.setBracketPlaceholders(player.getPlayer(), spy.replaceAll("receiver_", ""))) + msg;
 
 					if (ignored) {
-						mcp.getPlayer().sendMessage(echo);
+						PrivateMessages.send(plugin, mcp.getPlayer(), echo, player.getName());
 						return true;
 					}
 
+					var personalResult = ChatFeatures.censor(plugin, org.bukkit.ChatColor.stripColor(msg));
 					if (!mcp.getPlayer().hasPermission("venturechat.spy.override")) {
 						for (MineverseChatPlayer p : MineverseChatAPI.getOnlineMineverseChatPlayers()) {
 							if (p.getName().equals(mcp.getName()) || p.getName().equals(player.getName())) {
 								continue;
 							}
 							if (p.isSpy()) {
-								p.getPlayer().sendMessage(spy);
+								p.getPlayer().sendMessage(ChatFeatures.incoming(spy, msg, personalResult, mcp, p));
 							}
 						}
 					}
-					player.getPlayer().sendMessage(send);
-					mcp.getPlayer().sendMessage(echo);
+					PrivateMessages.send(plugin, player.getPlayer(), ChatFeatures.incoming(send, msg, personalResult, mcp, player), mcp.getName());
+					ChatFeatures.record(plugin, mcp, "DirectMessage", player.getUUID(), msg, true);
+					PrivateMessages.send(plugin, mcp.getPlayer(), echo, player.getName());
 					if (player.hasNotifications()) {
 						Format.playMessageSound(player);
 					}

@@ -53,6 +53,7 @@ public class MineverseChatPlayer {
 	private int editHash;
 	private boolean rangedSpy;
 	private boolean messageToggle;
+	private volatile boolean personalFilter = true;
 	private long storageRevision;
 	
 	@Deprecated
@@ -365,6 +366,16 @@ public class MineverseChatPlayer {
 
 	public boolean hasParty() {
 		return this.party != null;
+	}
+
+	/** Incoming recipient preference, separate from the legacy outgoing filter. */
+	public boolean hasPersonalFilter() { return personalFilter; }
+
+	public void setPersonalFilter(boolean enabled) {
+		if (personalFilter != enabled) {
+			personalFilter = enabled;
+			setModified(true);
+		}
 	}
 
 	public boolean hasFilter() {
