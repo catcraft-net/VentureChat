@@ -3,6 +3,7 @@ version: ${project.version}
 api-version: '26.2'
 main: mineverse.Aust1n46.chat.MineverseChat
 depend: [Vault, ProtocolLib, PlaceholderAPI]
+softdepend: [Essentials]
 author: Aust1n46
 website: https://bitbucket.org/Aust1n46/venturechat/
 description: Paper chat channels with PlaceholderAPI, JSON formatting, and a moderation GUI.

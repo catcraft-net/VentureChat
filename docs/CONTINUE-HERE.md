@@ -4,6 +4,8 @@ Implementation and documentation review are complete. PR #5 is prepared for revi
 
 Branch: `feat/player-chat-controls-and-history`; base: `master` at `efd818e3b3fb7c5b8a140fa2dedec1e4909294e4`.
 
+Version 4.1.2 adds optional EssentialsX mail blocking from the existing VentureChat ignore list; see `essentials-mail.md` for behavior and focused validation.
+
 Version 4.1.1 adds whole-word personal censoring and polished settings/skin profiles. See `validation-4.1.1.md` for the focused patch checks.
 
 The prior 4.1.0 full build passed 97 tests, including exact ChatSentry fixtures and the storage benchmark. Disposable Paper checks and independent review passed. For the earlier documentation resume, only two focused bundled-configuration checks were run for the resource/documentation tidy-up. No production Java changed in that earlier documentation-only resume. See `validation-4.1.md` for precise evidence and boundaries.

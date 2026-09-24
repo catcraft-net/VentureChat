@@ -21,6 +21,7 @@ public final class ChatFeatures implements AutoCloseable {
     private ChatHistoryService history;
     private HistoryDashboard dashboard;
     private ChatSentryScope scope;
+    private mineverse.Aust1n46.chat.integrations.EssentialsMailBridge mailBridge;
     private long reportedDrops, reportedFailures;
     private String realm;
     private boolean closed;
@@ -28,6 +29,7 @@ public final class ChatFeatures implements AutoCloseable {
     public ChatFeatures(MineverseChat plugin) { this.plugin = plugin; }
 
     public void start() {
+        mailBridge = mineverse.Aust1n46.chat.integrations.EssentialsMailBridge.install(plugin);
         var config = plugin.getConfig();
         realm = config.getString("chat-history.realm", "server");
         if (realm == null || realm.isBlank() || realm.length() > 64) realm = "server";
@@ -131,6 +133,7 @@ public final class ChatFeatures implements AutoCloseable {
     }
     @Override public void close() {
         closed=true;
+        if(mailBridge!=null) mailBridge.close();
         ChatSettingsMenu.resetNameLookups();
         if(scope!=null) scope.close();
         if(dashboard!=null) dashboard.close();
