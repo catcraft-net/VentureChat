@@ -294,6 +294,9 @@ public final class MineverseChatAPI {
      * @return {@link MineverseChatPlayer}
      */
     public static MineverseChatPlayer getOnlineMineverseChatPlayer(UUID uuid) {
+        if (uuid == null) {
+            return null;
+        }
         return onlinePlayerMap.get(uuid);
     }
 
