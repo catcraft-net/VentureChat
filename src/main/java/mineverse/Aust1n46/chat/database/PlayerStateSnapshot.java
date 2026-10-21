@@ -23,7 +23,17 @@ public record PlayerStateSnapshot(
         boolean commandSpy,
         boolean rangedSpy,
         boolean messageToggle,
+        boolean personalFilter,
         long revision) {
+
+    /** Compatibility constructor for pre-4.1 integrations; personal filtering defaults on. */
+    public PlayerStateSnapshot(UUID uuid, String name, String currentChannel, Set<UUID> ignores,
+            Set<String> listening, Map<String, MuteState> mutes, Set<String> blockedCommands,
+            boolean host, UUID party, boolean filter, boolean notifications, String jsonFormat,
+            boolean spy, boolean commandSpy, boolean rangedSpy, boolean messageToggle, long revision) {
+        this(uuid, name, currentChannel, ignores, listening, mutes, blockedCommands, host, party,
+                filter, notifications, jsonFormat, spy, commandSpy, rangedSpy, messageToggle, true, revision);
+    }
 
     public record MuteState(long expiresAt, String reason) {
         public MuteState {
@@ -64,6 +74,7 @@ public record PlayerStateSnapshot(
                 && !spy
                 && !commandSpy
                 && !rangedSpy
-                && messageToggle;
+                && messageToggle
+                && personalFilter;
     }
 }

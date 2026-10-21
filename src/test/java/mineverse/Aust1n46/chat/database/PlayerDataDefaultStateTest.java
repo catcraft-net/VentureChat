@@ -74,6 +74,7 @@ public class PlayerDataDefaultStateTest {
 		when(mcp.isHost()).thenReturn(false);
 		when(mcp.hasParty()).thenReturn(false);
 		when(mcp.hasFilter()).thenReturn(true);
+		when(mcp.hasPersonalFilter()).thenReturn(true);
 		when(mcp.hasNotifications()).thenReturn(true);
 		when(mcp.isSpy()).thenReturn(false);
 		when(mcp.hasCommandSpy()).thenReturn(false);

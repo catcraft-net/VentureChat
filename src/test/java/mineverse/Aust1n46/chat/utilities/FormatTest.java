@@ -188,4 +188,44 @@ public class FormatTest {
 		String result = Format.FormatStringLegacyColor(input);
 		assertEquals(expectedResult, result);
 	}
+
+	@Test
+	public void modernFormattingUsesJsonBooleans() throws Exception {
+		String json = "[" + Format.convertToJsonColors("§a§l§o§n§m§kStyled") + "]";
+		org.json.simple.JSONArray parts = (org.json.simple.JSONArray) new org.json.simple.parser.JSONParser().parse(json);
+		org.json.simple.JSONObject styled = (org.json.simple.JSONObject) parts.getLast();
+		assertEquals(Boolean.TRUE, styled.get("bold"));
+		assertEquals(Boolean.TRUE, styled.get("italic"));
+		assertEquals(Boolean.TRUE, styled.get("underlined"));
+		assertEquals(Boolean.TRUE, styled.get("strikethrough"));
+		assertEquals(Boolean.TRUE, styled.get("obfuscated"));
+	}
+
+	@Test
+	public void modernPlainTextHelperIncludesRootAndNestedChildren() {
+		net.kyori.adventure.text.Component component = net.kyori.adventure.text.Component.text("root")
+			.append(net.kyori.adventure.text.Component.text("child")
+				.append(net.kyori.adventure.text.Component.text("grandchild")));
+		assertEquals("rootchildgrandchild", Format.toPlainText(component, component.getClass()));
+	}
+
+	@Test
+	public void modernColoredTextHelperPreservesNestedStyles() throws Exception {
+		net.kyori.adventure.text.Component component = net.kyori.adventure.text.Component.text("root", net.kyori.adventure.text.format.NamedTextColor.RED)
+			.append(net.kyori.adventure.text.Component.text("child").decorate(net.kyori.adventure.text.format.TextDecoration.BOLD));
+		org.json.simple.JSONObject result = (org.json.simple.JSONObject) new org.json.simple.parser.JSONParser()
+			.parse("{" + Format.toColoredText(component, component.getClass()) + "}");
+		org.json.simple.JSONObject root = (org.json.simple.JSONObject) ((org.json.simple.JSONArray) result.get("extra")).getFirst();
+		assertEquals("root", root.get("text"));
+		assertEquals("red", root.get("color"));
+		assertEquals(Boolean.TRUE, ((org.json.simple.JSONObject) ((org.json.simple.JSONArray) root.get("extra")).getFirst()).get("bold"));
+	}
+
+	@Test
+	public void underlineUrlsUsesBooleanJsonLiteral() {
+		Mockito.when(mockConfig.getBoolean("underlineurls", true)).thenReturn(true);
+		assertEquals("true", Format.underlineURLs());
+		Mockito.when(mockConfig.getBoolean("underlineurls", true)).thenReturn(false);
+		assertEquals("false", Format.underlineURLs());
+	}
 }

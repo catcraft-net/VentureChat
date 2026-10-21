@@ -22,7 +22,6 @@ import mineverse.Aust1n46.chat.channel.ChatChannel;
 import mineverse.Aust1n46.chat.gui.GuiSlot;
 import mineverse.Aust1n46.chat.localization.LocalizedMessage;
 import mineverse.Aust1n46.chat.utilities.Format;
-import mineverse.Aust1n46.chat.versions.VersionHandler;
 
 public class VentureChatGui extends Command {
 	private MineverseChat plugin = MineverseChat.getInstance();
@@ -74,33 +73,21 @@ public class VentureChatGui extends Command {
 	@SuppressWarnings("deprecation")
 	private void openInventory(MineverseChatPlayer mcp, MineverseChatPlayer target, ChatChannel channel, int hash) {
 		Inventory inv = Bukkit.createInventory(null, this.getSlots(), "VentureChat: " + target.getName() + " GUI");
-		ItemStack close = null;
-		ItemStack skull = null;
-		if (VersionHandler.is1_7()) {
-			close = new ItemStack(Material.BEDROCK);
-		} else {
-			close = new ItemStack(Material.BARRIER);
-		}
-
-		if (VersionHandler.is1_7() || VersionHandler.is1_8() || VersionHandler.is1_9() || VersionHandler.is1_10() || VersionHandler.is1_11() || VersionHandler.is1_12()) {
-			skull = new ItemStack(Material.getMaterial("SKULL_ITEM"));
-		} else {
-			skull = new ItemStack(Material.PLAYER_HEAD);
-		}
+		ItemStack close = new ItemStack(Material.BARRIER);
+		ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
 
 		ItemMeta closeMeta = close.getItemMeta();
 		closeMeta.setDisplayName(ChatColor.RED + "" + ChatColor.ITALIC + "Close GUI");
 		close.setItemMeta(closeMeta);
 
 		SkullMeta skullMeta = (SkullMeta) skull.getItemMeta();
-		skullMeta.setOwner(target.getName());
+		skullMeta.setOwnerProfile(Bukkit.createPlayerProfile(target.getUUID(), target.getName()));
 		skullMeta.setDisplayName(ChatColor.AQUA + target.getName());
 		List<String> skullLore = new ArrayList<String>();
 		skullLore.add(ChatColor.GRAY + "Channel: " + channel.getColor() + channel.getName());
 		skullLore.add(ChatColor.GRAY + "Hash: " + channel.getColor() + hash);
 		skullMeta.setLore(skullLore);
 		skull.setItemMeta(skullMeta);
-		skull.setDurability((short) 3);
 		inv.setItem(0, skull);
 
 		for (GuiSlot g : GuiSlot.getGuiSlots()) {
@@ -132,33 +119,21 @@ public class VentureChatGui extends Command {
 	@SuppressWarnings("deprecation")
 	private void openInventoryDiscord(MineverseChatPlayer mcp, ChatChannel channel, int hash) {
 		Inventory inv = Bukkit.createInventory(null, this.getSlots(), "VentureChat: Discord_Message GUI");
-		ItemStack close = null;
-		ItemStack skull = null;
-		if (VersionHandler.is1_7()) {
-			close = new ItemStack(Material.BEDROCK);
-		} else {
-			close = new ItemStack(Material.BARRIER);
-		}
-
-		if (VersionHandler.is1_7() || VersionHandler.is1_8() || VersionHandler.is1_9() || VersionHandler.is1_10() || VersionHandler.is1_11() || VersionHandler.is1_12()) {
-			skull = new ItemStack(Material.getMaterial("SKULL_ITEM"));
-		} else {
-			skull = new ItemStack(Material.PLAYER_HEAD);
-		}
+		ItemStack close = new ItemStack(Material.BARRIER);
+		ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
 
 		ItemMeta closeMeta = close.getItemMeta();
 		closeMeta.setDisplayName("�oClose GUI");
 		close.setItemMeta(closeMeta);
 
 		SkullMeta skullMeta = (SkullMeta) skull.getItemMeta();
-		skullMeta.setOwner("Scarsz");
+		skullMeta.setOwnerProfile(Bukkit.createPlayerProfile("Scarsz"));
 		skullMeta.setDisplayName("�bDiscord_Message");
 		List<String> skullLore = new ArrayList<String>();
 		skullLore.add("�7Channel: " + channel.getColor() + channel.getName());
 		skullLore.add("�7Hash: " + channel.getColor() + hash);
 		skullMeta.setLore(skullLore);
 		skull.setItemMeta(skullMeta);
-		skull.setDurability((short) 3);
 		inv.setItem(0, skull);
 
 		for (GuiSlot g : GuiSlot.getGuiSlots()) {

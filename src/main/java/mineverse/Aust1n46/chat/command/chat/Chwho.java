@@ -7,20 +7,13 @@ import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.PluginManager;
 
-import com.massivecraft.factions.entity.MPlayer;
-import com.palmergames.bukkit.towny.TownyUniverse;
-import com.palmergames.bukkit.towny.object.Resident;
-
-import mineverse.Aust1n46.chat.MineverseChat;
 import mineverse.Aust1n46.chat.api.MineverseChatAPI;
 import mineverse.Aust1n46.chat.api.MineverseChatPlayer;
 import mineverse.Aust1n46.chat.channel.ChatChannel;
 import mineverse.Aust1n46.chat.localization.LocalizedMessage;
 
 public class Chwho extends Command {
-	private MineverseChat plugin = MineverseChat.getInstance();
 
 	public Chwho() {
 		super("chwho");
@@ -42,7 +35,6 @@ public class Chwho extends Command {
 						}
 					}
 
-					PluginManager pluginManager = plugin.getServer().getPluginManager();
 					long linecount = LINE_LENGTH;
 					for (MineverseChatPlayer p : MineverseChatAPI.getOnlineMineverseChatPlayers()) {
 						if (p.getListening().contains(channel.getName())) {
@@ -54,82 +46,6 @@ public class Chwho extends Command {
 							if (channel.hasDistance() && sender instanceof Player) {
 								if (!this.isPlayerWithinDistance((Player) sender, p.getPlayer(), channel.getDistance())) {
 									continue;
-								}
-							}
-							if (plugin.getConfig().getBoolean("enable_towny_channel") && pluginManager.isPluginEnabled("Towny") && sender instanceof Player) {
-								try {
-									TownyUniverse towny = TownyUniverse.getInstance();
-									if (channel.getName().equalsIgnoreCase("Town")) {
-										Resident r = towny.getResident(p.getName());
-										Resident pp = towny.getResident(((Player) sender).getName());
-										if (!pp.hasTown()) {
-											if (playerlist.length() + p.getName().length() > linecount) {
-												playerlist += "\n";
-												linecount = linecount + LINE_LENGTH;
-											}
-											if (!p.isMuted(channel.getName())) {
-												playerlist += ChatColor.WHITE + p.getName();
-											} else {
-												playerlist += ChatColor.RED + p.getName();
-											}
-											playerlist += ChatColor.WHITE + ", ";
-											break;
-										} else if (!r.hasTown()) {
-											continue;
-										} else if (!(r.getTown().getName().equals(pp.getTown().getName()))) {
-											continue;
-										}
-									}
-									if (channel.getName().equalsIgnoreCase("Nation")) {
-										Resident r = towny.getResident(p.getName());
-										Resident pp = towny.getResident(((Player) sender).getName());
-										if (!pp.hasNation()) {
-											if (playerlist.length() + p.getName().length() > linecount) {
-												playerlist += "\n";
-												linecount = linecount + LINE_LENGTH;
-											}
-											if (!p.isMuted(channel.getName())) {
-												playerlist += ChatColor.WHITE + p.getName();
-											} else {
-												playerlist += ChatColor.RED + p.getName();
-											}
-											playerlist += ChatColor.WHITE + ", ";
-											break;
-										} else if (!r.hasNation()) {
-											continue;
-										} else if (!(r.getTown().getNation().getName().equals(pp.getTown().getNation().getName()))) {
-											continue;
-										}
-									}
-								} catch (Exception ex) {
-									ex.printStackTrace();
-								}
-							}
-							if (plugin.getConfig().getBoolean("enable_factions_channel") && pluginManager.isPluginEnabled("Factions") && sender instanceof Player) {
-								try {
-									if (channel.getName().equalsIgnoreCase("Faction")) {
-										MPlayer mplayer = MPlayer.get(p.getPlayer());
-										MPlayer mplayerp = MPlayer.get((Player) sender);
-										if (!mplayerp.hasFaction()) {
-											if (playerlist.length() + p.getName().length() > linecount) {
-												playerlist += "\n";
-												linecount = linecount + LINE_LENGTH;
-											}
-											if (!p.isMuted(channel.getName())) {
-												playerlist += ChatColor.WHITE + p.getName();
-											} else {
-												playerlist += ChatColor.RED + p.getName();
-											}
-											playerlist += ChatColor.WHITE + ", ";
-											break;
-										} else if (!mplayerp.hasFaction()) {
-											continue;
-										} else if (!(mplayer.getFactionName().equals(mplayerp.getFactionName()))) {
-											continue;
-										}
-									}
-								} catch (Exception ex) {
-									ex.printStackTrace();
 								}
 							}
 							if (playerlist.length() + p.getName().length() > linecount) {

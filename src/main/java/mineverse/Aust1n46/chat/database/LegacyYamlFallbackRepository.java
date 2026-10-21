@@ -101,6 +101,7 @@ final class LegacyYamlFallbackRepository implements PlayerStateRepository {
         yaml.set("commandspy", state.commandSpy());
         yaml.set("rangedspy", state.rangedSpy());
         yaml.set("messagetoggle", state.messageToggle());
+        yaml.set("personalfilter", state.personalFilter());
         Path temporary = destination.resolveSibling(destination.getFileName() + ".tmp");
         yaml.save(temporary.toFile());
         try {

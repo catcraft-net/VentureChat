@@ -1,7 +1,6 @@
 package mineverse.Aust1n46.chat.command;
 
 import java.io.File;
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,7 +8,6 @@ import java.util.Map.Entry;
 
 import org.bukkit.Server;
 import org.bukkit.command.Command;
-import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -65,7 +63,6 @@ public class VentureCommandExecutor {
 
 	private static Map<String, Command> knownCommands;
 
-	@SuppressWarnings("unchecked")
 	public static void initialize() {
 		final Server server = plugin.getServer();
 		final File commandsFile = new File(plugin.getDataFolder().getAbsolutePath(), "commands.yml");
@@ -80,28 +77,12 @@ public class VentureCommandExecutor {
 			plugin.saveResource("commands.yml", true);
 			commandsFileConfiguration = YamlConfiguration.loadConfiguration(commandsFile);
 		}
-		try {
-			knownCommands = server.getCommandMap().getKnownCommands(); // Paper :)
-		}
-		// Spigot :(
-		catch (final NoSuchMethodError error) {
-			try {
-				final Field commandMapField = server.getClass().getDeclaredField("commandMap");
-				commandMapField.setAccessible(true);
-				final SimpleCommandMap simpleCommandMap = (SimpleCommandMap) commandMapField.get(server);
-				final Field knownCommandsField = SimpleCommandMap.class.getDeclaredField("knownCommands");
-				knownCommandsField.setAccessible(true);
-				knownCommands = (Map<String, Command>) knownCommandsField.get(simpleCommandMap);
-			} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
-				server.getConsoleSender()
-						.sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&c - Unable to access CommandMap on Spigot. If this issue persists, try using Paper."));
-				e.printStackTrace();
-			}
-		}
+		knownCommands = server.getCommandMap().getKnownCommands();
 		commands.put("broadcast", new Broadcast());
 		commands.put("channel", new Channel());
 		commands.put("channelinfo", new Channelinfo());
 		commands.put("chatinfo", new Chatinfo());
+		commands.put("chatsettings", new mineverse.Aust1n46.chat.command.chat.ChatSettings());
 		commands.put("chatreload", new Chatreload());
 		commands.put("chlist", new Chlist());
 		commands.put("chwho", new Chwho());
@@ -140,6 +121,7 @@ public class VentureCommandExecutor {
 			final String alias = chatChannel.getAlias();
 			commands.put(alias, channelAlias);
 		}
+		if (!commandsFileConfiguration.contains("commands.chatsettings")) commandsFileConfiguration.set("commands.chatsettings.enabled", true);
 		final ConfigurationSection commandsSection = commandsFileConfiguration.getConfigurationSection("commands");
 		for (final String commandName : commandsSection.getKeys(false)) {
 			final ConfigurationSection commandSection = commandsSection.getConfigurationSection(commandName);

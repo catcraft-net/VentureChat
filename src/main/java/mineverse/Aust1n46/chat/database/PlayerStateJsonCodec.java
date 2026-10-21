@@ -35,6 +35,8 @@ public final class PlayerStateJsonCodec {
         json.put("commandSpy", state.commandSpy());
         json.put("rangedSpy", state.rangedSpy());
         json.put("messageToggle", state.messageToggle());
+        // Omit the default to preserve checksums of existing migration journals.
+        if (!state.personalFilter()) json.put("personalFilter", false);
         json.put("revision", state.revision());
         return JSONObject.toJSONString(json);
     }
@@ -59,6 +61,7 @@ public final class PlayerStateJsonCodec {
                 bool(json, "commandSpy", false),
                 bool(json, "rangedSpy", false),
                 bool(json, "messageToggle", true),
+                bool(json, "personalFilter", true),
                 ((Number) json.getOrDefault("revision", 0L)).longValue());
     }
 

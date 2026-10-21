@@ -2,7 +2,6 @@ package mineverse.Aust1n46.chat.utilities;
 
 import static mineverse.Aust1n46.chat.MineverseChat.getInstance;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.StringTokenizer;
 import java.util.regex.Matcher;
@@ -13,12 +12,15 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
-import org.json.simple.JSONObject;
 
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.wrappers.WrappedChatComponent;
+
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import mineverse.Aust1n46.chat.ClickAction;
@@ -27,7 +29,6 @@ import mineverse.Aust1n46.chat.api.MineverseChatPlayer;
 import mineverse.Aust1n46.chat.json.JsonAttribute;
 import mineverse.Aust1n46.chat.json.JsonFormat;
 import mineverse.Aust1n46.chat.localization.LocalizedMessage;
-import mineverse.Aust1n46.chat.versions.VersionHandler;
 
 /**
  * Class containing chat formatting methods.
@@ -53,6 +54,8 @@ public class Format {
 	public static final long MILLISECONDS_PER_SECOND = 1000;
 	
 	public static final String DEFAULT_MESSAGE_SOUND = "ENTITY_PLAYER_LEVELUP";
+	/** @deprecated Retained for plugins compiled against older VentureChat APIs. */
+	@Deprecated
 	public static final String DEFAULT_LEGACY_MESSAGE_SOUND = "LEVEL_UP";
 
 	/**
@@ -340,36 +343,21 @@ public class Format {
 				strikethrough = false;
 				underlined = false;
 			}
-			if (bold)
-				if (VersionHandler.isAtLeast_1_20_4()) {
-					modifier += ",\"bold\":true";
-				} else {
-					modifier += ",\"bold\":\"true\"";
-				}
-			if (obfuscated)
-				if (VersionHandler.isAtLeast_1_20_4()) {
-					modifier += ",\"obfuscated\":true";
-				} else {
-					modifier += ",\"obfuscated\":\"true\"";
-				}
-			if (italic)
-				if (VersionHandler.isAtLeast_1_20_4()) {
-					modifier += ",\"italic\":true";
-				} else {
-					modifier += ",\"italic\":\"true\"";
-				}
-			if (underlined)
-				if (VersionHandler.isAtLeast_1_20_4()) {
-					modifier += ",\"underlined\":true";
-				} else {
-					modifier += ",\"underlined\":\"true\"";
-				}
-			if (strikethrough)
-				if (VersionHandler.isAtLeast_1_20_4()) {
-					modifier += ",\"strikethrough\":true";
-				} else {
-					modifier += ",\"strikethrough\":\"true\"";
-				}
+			if (bold) {
+				modifier += ",\"bold\":true";
+			}
+			if (obfuscated) {
+				modifier += ",\"obfuscated\":true";
+			}
+			if (italic) {
+				modifier += ",\"italic\":true";
+			}
+			if (underlined) {
+				modifier += ",\"underlined\":true";
+			}
+			if (strikethrough) {
+				modifier += ",\"strikethrough\":true";
+			}
 			remaining = remaining.substring(colorLength);
 			colorLength = LEGACY_COLOR_CODE_LENGTH;
 			indexNextColor = remaining.indexOf(BUKKIT_COLOR_CODE_PREFIX);
@@ -465,47 +453,13 @@ public class Format {
 	}
 
 	public static PacketContainer createPacketPlayOutChat(String json) {
-		final PacketContainer container;
-		if (VersionHandler.isAtLeast_1_20_4()) { // 1.20.4+
-			container = new PacketContainer(PacketType.Play.Server.SYSTEM_CHAT);
-			container.getChatComponents().write(0, WrappedChatComponent.fromJson(json));
-			container.getBooleans().write(0, false);
-		} else if (VersionHandler.isAbove_1_19()) { // 1.19.1 -> 1.20.3
-			container = new PacketContainer(PacketType.Play.Server.SYSTEM_CHAT);
-			container.getStrings().write(0, json);
-			container.getBooleans().write(0, false);
-		} else if (VersionHandler.isUnder_1_19()) { // 1.7 -> 1.19
-			WrappedChatComponent component = WrappedChatComponent.fromJson(json);
-			container = new PacketContainer(PacketType.Play.Server.CHAT);
-			container.getModifier().writeDefaults();
-			container.getChatComponents().write(0, component);
-		} else { // 1.19
-			container = new PacketContainer(PacketType.Play.Server.SYSTEM_CHAT);
-			container.getStrings().write(0, json);
-			container.getIntegers().write(0, 1);
-		}
-		return container;
+		return createPacketPlayOutChat(WrappedChatComponent.fromJson(json));
 	}
 
 	public static PacketContainer createPacketPlayOutChat(WrappedChatComponent component) {
-		final PacketContainer container;
-		if (VersionHandler.isAtLeast_1_20_4()) { // 1.20.4+
-			container = new PacketContainer(PacketType.Play.Server.SYSTEM_CHAT);
-			container.getChatComponents().write(0, component);
-			container.getBooleans().write(0, false);
-		} else if (VersionHandler.isAbove_1_19()) { // 1.19.1 -> 1.20.3
-			container = new PacketContainer(PacketType.Play.Server.SYSTEM_CHAT);
-			container.getStrings().write(0, component.getJson());
-			container.getBooleans().write(0, false);
-		} else if (VersionHandler.isUnder_1_19()) { // 1.7 -> 1.19
-			container = new PacketContainer(PacketType.Play.Server.CHAT);
-			container.getModifier().writeDefaults();
-			container.getChatComponents().write(0, component);
-		} else { // 1.19
-			container = new PacketContainer(PacketType.Play.Server.SYSTEM_CHAT);
-			container.getStrings().write(0, component.getJson());
-			container.getIntegers().write(0, 1);
-		}
+		PacketContainer container = new PacketContainer(PacketType.Play.Server.SYSTEM_CHAT);
+		container.getChatComponents().write(0, component);
+		container.getBooleans().write(0, false);
 		return container;
 	}
 
@@ -517,135 +471,27 @@ public class Format {
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
-	public static String toColoredText(Object o, Class<?> c) {
-		if (VersionHandler.is1_7()) {
-			return "\"extra\":[{\"text\":\"Hover to see original message is not currently supported in 1.7\",\"color\":\"red\"}]";
-		} 
-		List<Object> finalList = new ArrayList<>();
-		StringBuilder stringbuilder = new StringBuilder();
-		stringbuilder.append("\"extra\":[");
-		try {
-			splitComponents(finalList, o, c);
-			for (Object component : finalList) {		
-				try {
-					if (VersionHandler.is1_8() || VersionHandler.is1_9() || VersionHandler.is1_10() || VersionHandler.is1_11() || VersionHandler.is1_12() || VersionHandler.is1_13() || VersionHandler.is1_14() || VersionHandler.is1_15() || VersionHandler.is1_16() || VersionHandler.is1_17()) {
-						String text = (String) component.getClass().getMethod("getText").invoke(component);
-						Object chatModifier = component.getClass().getMethod("getChatModifier").invoke(component);
-						Object color = chatModifier.getClass().getMethod("getColor").invoke(chatModifier);
-						String colorString = "white";
-						if (color != null ) {
-							colorString = color.getClass().getMethod("b").invoke(color).toString();
-						}
-						boolean bold = (boolean) chatModifier.getClass().getMethod("isBold").invoke(chatModifier);
-						boolean strikethrough = (boolean) chatModifier.getClass().getMethod("isStrikethrough").invoke(chatModifier);
-						boolean italic = (boolean) chatModifier.getClass().getMethod("isItalic").invoke(chatModifier);
-						boolean underlined = (boolean) chatModifier.getClass().getMethod("isUnderlined").invoke(chatModifier);
-						boolean obfuscated = (boolean) chatModifier.getClass().getMethod("isRandom").invoke(chatModifier);
-						JSONObject jsonObject = new JSONObject();
-						jsonObject.put("text", text);
-						jsonObject.put("color", colorString);
-						jsonObject.put("bold", bold);
-						jsonObject.put("strikethrough", strikethrough);
-						jsonObject.put("italic", italic);
-						jsonObject.put("underlined", underlined);
-						jsonObject.put("obfuscated", obfuscated);
-						stringbuilder.append(jsonObject.toJSONString() + ",");
-					} else {
-						String text = (String) component.getClass().getMethod("getString").invoke(component);
-						Object chatModifier = component.getClass().getMethod("c").invoke(component);
-						Object color = chatModifier.getClass().getMethod("a").invoke(chatModifier);
-						String colorString = "white";
-						if (color != null ) {
-							colorString = color.getClass().getMethod("b").invoke(color).toString();
-						}
-						boolean bold = (boolean) chatModifier.getClass().getMethod("b").invoke(chatModifier);
-						boolean italic = (boolean) chatModifier.getClass().getMethod("c").invoke(chatModifier);
-						boolean strikethrough = (boolean) chatModifier.getClass().getMethod("d").invoke(chatModifier);
-						boolean underlined = (boolean) chatModifier.getClass().getMethod("e").invoke(chatModifier);
-						boolean obfuscated = (boolean) chatModifier.getClass().getMethod("f").invoke(chatModifier);
-						JSONObject jsonObject = new JSONObject();
-						jsonObject.put("text", text);
-						jsonObject.put("color", colorString);
-						jsonObject.put("bold", bold);
-						jsonObject.put("strikethrough", strikethrough);
-						jsonObject.put("italic", italic);
-						jsonObject.put("underlined", underlined);
-						jsonObject.put("obfuscated", obfuscated);
-						stringbuilder.append(jsonObject.toJSONString() + ",");
-					}
-				}
-				catch(Exception e) {
-					return "\"extra\":[{\"text\":\"Something went wrong. Could not access color.\",\"color\":\"red\"}]";
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		String coloredText = stringbuilder.toString();
-		if(coloredText.endsWith(",")) {
-			coloredText = coloredText.substring(0, coloredText.length() - 1);
-		}
-		coloredText += "]";
-		return coloredText;
+	/**
+	 * Compatibility entry point for callers holding a ProtocolLib/NMS component.
+	 * The class argument is retained for binary compatibility; ProtocolLib handles
+	 * the current server's component mapping.
+	 */
+	public static String toColoredText(Object component, Class<?> componentClass) {
+		return "\"extra\":[" + GsonComponentSerializer.gson().serialize(asAdventureComponent(component)) + "]";
 	}
 
-	public static String toPlainText(Object o, Class<?> c) {
-		List<Object> finalList = new ArrayList<>();
-		StringBuilder stringbuilder = new StringBuilder();
-		try {
-			splitComponents(finalList, o, c);
-			for (Object component : finalList) {
-				if (VersionHandler.is1_7()) {
-					stringbuilder.append((String) component.getClass().getMethod("e").invoke(component));
-				} else if(VersionHandler.is1_8() || VersionHandler.is1_9() || VersionHandler.is1_10() || VersionHandler.is1_11() || VersionHandler.is1_12() || VersionHandler.is1_13() || VersionHandler.is1_14() || VersionHandler.is1_15() || VersionHandler.is1_16() || VersionHandler.is1_17()){
-					stringbuilder.append((String) component.getClass().getMethod("getText").invoke(component));
-				}
-				else {
-					stringbuilder.append((String) component.getClass().getMethod("getString").invoke(component));
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return stringbuilder.toString();
+	/** Retains the public helper while avoiding obsolete obfuscated NMS methods. */
+	public static String toPlainText(Object component, Class<?> componentClass) {
+		return PlainTextComponentSerializer.plainText().serialize(asAdventureComponent(component));
 	}
 
-	private static void splitComponents(List<Object> finalList, Object o, Class<?> c) throws Exception {
-		if (VersionHandler.is1_7() || VersionHandler.is1_8() || VersionHandler.is1_9() || VersionHandler.is1_10()
-				|| VersionHandler.is1_11() || VersionHandler.is1_12() || VersionHandler.is1_13()
-				|| (VersionHandler.is1_14() && !VersionHandler.is1_14_4())) {
-			ArrayList<?> list = (ArrayList<?>) c.getMethod("a").invoke(o, new Object[0]);
-			for (Object component : list) {
-				ArrayList<?> innerList = (ArrayList<?>) c.getMethod("a").invoke(component, new Object[0]);
-				if (innerList.size() > 0) {
-					splitComponents(finalList, component, c);
-				} else {
-					finalList.add(component);
-				}
-			}
-		} else if(VersionHandler.is1_14_4() || VersionHandler.is1_15() || VersionHandler.is1_16() || VersionHandler.is1_17()) {
-			ArrayList<?> list = (ArrayList<?>) c.getMethod("getSiblings").invoke(o, new Object[0]);
-			for (Object component : list) {
-				ArrayList<?> innerList = (ArrayList<?>) c.getMethod("getSiblings").invoke(component, new Object[0]);
-				if (innerList.size() > 0) {
-					splitComponents(finalList, component, c);
-				} else {
-					finalList.add(component);
-				}
-			}
+	private static Component asAdventureComponent(Object component) {
+		if (component instanceof Component adventureComponent) {
+			return adventureComponent;
 		}
-		else {
-			ArrayList<?> list = (ArrayList<?>) c.getMethod("b").invoke(o, new Object[0]);
-			for (Object component : list) {
-				ArrayList<?> innerList = (ArrayList<?>) c.getMethod("b").invoke(component, new Object[0]);
-				if (innerList.size() > 0) {
-					splitComponents(finalList, component, c);
-				} else {
-					finalList.add(component);
-				}
-			}
-		}
+		WrappedChatComponent wrapped = component instanceof WrappedChatComponent chatComponent
+				? chatComponent : WrappedChatComponent.fromHandle(component);
+		return GsonComponentSerializer.gson().deserialize(wrapped.getJson());
 	}
 
 	/**
@@ -810,12 +656,7 @@ public class Format {
 	}
 
 	public static String underlineURLs() {
-		final boolean configValue = getInstance().getConfig().getBoolean("underlineurls", true);
-		if (VersionHandler.isAtLeast_1_20_4()) {
-			return String.valueOf(configValue);
-		} else {
-			return "\"" + configValue + "\"";
-		}
+		return String.valueOf(getInstance().getConfig().getBoolean("underlineurls", true));
 	}
 	
 	public static String parseTimeStringFromMillis(long millis) {
@@ -981,12 +822,7 @@ public class Format {
 	}
 	
 	private static Sound getDefaultMessageSound() {
-		if(VersionHandler.is1_7() || VersionHandler.is1_8()) {
-			return Sound.valueOf(DEFAULT_LEGACY_MESSAGE_SOUND);
-		}
-		else {
-			return Sound.valueOf(DEFAULT_MESSAGE_SOUND);
-		}
+		return Sound.valueOf(DEFAULT_MESSAGE_SOUND);
 	}
 	
 	public static String stripColor(String message) {

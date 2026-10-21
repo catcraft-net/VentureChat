@@ -98,7 +98,7 @@ final class LegacyYamlStateReader {
                 yaml.getBoolean("host", false), party, yaml.getBoolean("filter", true),
                 yaml.getBoolean("notifications", true), "Default", yaml.getBoolean("spy", false),
                 yaml.getBoolean("commandspy", false), yaml.getBoolean("rangedspy", false),
-                yaml.getBoolean("messagetoggle", true), revision);
+                yaml.getBoolean("messagetoggle", true), yaml.getBoolean("personalfilter", true), revision);
     }
 
     private static List<String> split(String value) {

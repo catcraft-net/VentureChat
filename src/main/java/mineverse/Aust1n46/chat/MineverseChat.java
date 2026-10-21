@@ -11,7 +11,6 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitScheduler;
 
-import com.comphenix.protocol.ProtocolLibrary;
 
 import mineverse.Aust1n46.chat.alias.Alias;
 import mineverse.Aust1n46.chat.api.MineverseChatAPI;
@@ -28,12 +27,10 @@ import mineverse.Aust1n46.chat.json.JsonFormat;
 import mineverse.Aust1n46.chat.listeners.ChatListener;
 import mineverse.Aust1n46.chat.listeners.CommandListener;
 import mineverse.Aust1n46.chat.listeners.LoginListener;
-import mineverse.Aust1n46.chat.listeners.PacketListenerLegacyChat;
 import mineverse.Aust1n46.chat.listeners.SignListener;
 import mineverse.Aust1n46.chat.localization.Localization;
 import mineverse.Aust1n46.chat.localization.LocalizedMessage;
 import mineverse.Aust1n46.chat.utilities.Format;
-import mineverse.Aust1n46.chat.versions.VersionHandler;
 import net.milkbowl.vault.chat.Chat;
 import net.milkbowl.vault.permission.Permission;
 
@@ -90,7 +87,12 @@ public class MineverseChat extends JavaPlugin {
             return;
         }
 
-        initializeConfigReaders();
+        try { initializeConfigReaders(); }
+        catch (IllegalStateException ex) {
+            getLogger().severe(ex.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 
         Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Initializing player storage"));
         try {
@@ -110,20 +112,15 @@ public class MineverseChat extends JavaPlugin {
 
         VentureCommandExecutor.initialize();
 
+        chatFeatures = new mineverse.Aust1n46.chat.settings.ChatFeatures(this);
+        chatFeatures.start();
         registerListeners();
         Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Registering Listeners"));
         Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Attaching to Executors"));
 
         PluginManager pluginManager = getServer().getPluginManager();
-        if (pluginManager.isPluginEnabled("Towny")) {
-            Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Enabling Towny Formatting"));
-        }
         if (pluginManager.isPluginEnabled("Jobs")) {
             Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Enabling Jobs Formatting"));
-        }
-        if (pluginManager.isPluginEnabled("Factions")) {
-            String version = pluginManager.getPlugin("Factions").getDescription().getVersion();
-            Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Enabling Factions Formatting version " + version));
         }
         if (pluginManager.isPluginEnabled("PlaceholderAPI")) {
             Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Enabling PlaceholderAPI Hook"));
@@ -135,9 +132,13 @@ public class MineverseChat extends JavaPlugin {
         Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Enabled Successfully"));
     }
 
+    private mineverse.Aust1n46.chat.settings.ChatFeatures chatFeatures;
+    public mineverse.Aust1n46.chat.settings.ChatFeatures getChatFeatures() { return chatFeatures; }
+
     @Override
     public void onDisable() {
         Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Disabling..."));
+        if (chatFeatures != null) chatFeatures.close();
         PlayerData.shutdown();
         MineverseChatAPI.clearMineverseChatPlayerMap();
         MineverseChatAPI.clearNameMap();
@@ -187,14 +188,12 @@ public class MineverseChat extends JavaPlugin {
 
     private void registerListeners() {
         PluginManager pluginManager = getServer().getPluginManager();
+        pluginManager.registerEvents(new mineverse.Aust1n46.chat.settings.ChatSettingsMenu(this), this);
         pluginManager.registerEvents(new Channel(), this);
         pluginManager.registerEvents(new ChatListener(), this);
         pluginManager.registerEvents(new SignListener(), this);
         pluginManager.registerEvents(new CommandListener(), this);
         pluginManager.registerEvents(new LoginListener(), this);
-        if (VersionHandler.isUnder_1_19()) {
-            ProtocolLibrary.getProtocolManager().addPacketListener(new PacketListenerLegacyChat());
-        }
     }
 
     private boolean setupPermissions() {

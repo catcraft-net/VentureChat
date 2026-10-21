@@ -100,6 +100,7 @@ public class IgnoredPrivateMessageTest {
 
 	@Before
 	public void setUp() {
+		when(plugin.getChatFeatures()).thenReturn(null);
 		sender = Mockito.mock(Player.class);
 		target = Mockito.mock(Player.class);
 		spy = Mockito.mock(Player.class);
@@ -201,5 +202,118 @@ public class IgnoredPrivateMessageTest {
 		verify(target, never()).sendMessage(anyString());
 		verify(spy, never()).sendMessage(anyString());
 	}
+
+    private void matchingPersonalFilter() {
+        var features = Mockito.mock(mineverse.Aust1n46.chat.settings.ChatFeatures.class);
+        when(plugin.getChatFeatures()).thenReturn(features);
+        when(features.censor(anyString())).thenAnswer(invocation -> {
+            String text = invocation.getArgument(0);
+            return new mineverse.Aust1n46.chat.filter.CensorResult(text, text.replace("hello", "*****"), mineverse.Aust1n46.chat.filter.FilterDecision.MATCH);
+        });
+        when(targetMcp.getIgnores()).thenReturn(Collections.emptySet());
+        when(targetMcp.hasPersonalFilter()).thenReturn(true);
+        when(targetMcp.hasNotifications()).thenReturn(true);
+    }
+
+    @Test public void personalFilterCensorsDirectMessageEvenFromStaffBypass() {
+        matchingPersonalFilter();
+        when(sender.hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION)).thenReturn(true);
+        new Message().execute(sender, "msg", new String[] {"Target", "hello"});
+        verify(target).sendMessage("from *****");
+        verify(sender).sendMessage("to hello");
+        verify(spy).sendMessage("spy hello");
+        verify(targetMcp).setReplyPlayer(SENDER_UUID);
+        mockedFormat.verify(() -> Format.playMessageSound(targetMcp));
+    }
+    @Test public void personalFilterCensorsReplyAndOptedInSpy() {
+        matchingPersonalFilter();
+        when(spyMcp.hasPersonalFilter()).thenReturn(true);
+        when(senderMcp.hasReplyPlayer()).thenReturn(true);
+        when(senderMcp.getReplyPlayer()).thenReturn(TARGET_UUID);
+        new Reply().execute(sender, "reply", new String[] {"hello"});
+        verify(target).sendMessage("reply-from *****");
+        verify(sender).sendMessage("reply-to hello");
+        verify(spy).sendMessage("reply-spy *****");
+        verify(targetMcp).setReplyPlayer(SENDER_UUID);
+        mockedFormat.verify(() -> Format.playMessageSound(targetMcp));
+    }
+    @Test public void personalFilterCensorsConversation() {
+        matchingPersonalFilter();
+        when(senderMcp.hasConversation()).thenReturn(true);
+        when(senderMcp.getConversation()).thenReturn(TARGET_UUID);
+        AsyncPlayerChatEvent event = Mockito.mock(AsyncPlayerChatEvent.class);
+        when(event.getPlayer()).thenReturn(sender);
+        when(event.getMessage()).thenReturn("hello");
+        when(event.getRecipients()).thenReturn(Collections.emptySet());
+        new ChatListener().handleTrueAsyncPlayerChatEvent(event);
+        verify(target).sendMessage("from *****");
+        verify(sender).sendMessage("to hello");
+        verify(spy).sendMessage("spy hello");
+        verify(targetMcp).setReplyPlayer(SENDER_UUID);
+        mockedFormat.verify(() -> Format.playMessageSound(targetMcp));
+    }
+    @Test public void personalFilterOptOutAllowsDelivery() {
+        matchingPersonalFilter();
+        when(targetMcp.hasPersonalFilter()).thenReturn(false);
+        new Message().execute(sender, "msg", new String[] {"Target", "hello"});
+        verify(target).sendMessage("from hello");
+        verify(targetMcp).setReplyPlayer(SENDER_UUID);
+        mockedFormat.verify(() -> Format.playMessageSound(targetMcp));
+    }
+
+    @Test public void nativePartyKeepsSenderEchoAndCensorsOnlyOptedInRecipients() {
+        matchingPersonalFilter();
+        when(senderMcp.isPartyChat()).thenReturn(true);
+        when(senderMcp.hasParty()).thenReturn(true);
+        when(senderMcp.getParty()).thenReturn(TARGET_UUID);
+        when(targetMcp.hasParty()).thenReturn(true);
+        when(targetMcp.getParty()).thenReturn(TARGET_UUID);
+        when(senderMcp.hasPersonalFilter()).thenReturn(true);
+        when(config.getString("partyformat")).thenReturn("{host} party {player}:");
+        var console = Mockito.mock(org.bukkit.command.ConsoleCommandSender.class);
+        mockedBukkit.when(Bukkit::getConsoleSender).thenReturn(console);
+        AsyncPlayerChatEvent event = Mockito.mock(AsyncPlayerChatEvent.class);
+        when(event.getPlayer()).thenReturn(sender);
+        when(event.getMessage()).thenReturn("hello");
+        when(event.getRecipients()).thenReturn(Collections.emptySet());
+        new ChatListener().handleTrueAsyncPlayerChatEvent(event);
+        verify(sender).sendMessage("Target party Sender: hello");
+        verify(target).sendMessage("Target party Sender: *****");
+        verify(spy).sendMessage("Target party Sender: hello");
+        verify(console).sendMessage("Target party Sender: hello");
+        verify(plugin.getChatFeatures()).censor(" hello");
+    }
+
+    @Test public void channelDeliversMaskedAndOriginalPacketsToEligibleRecipients() {
+        matchingPersonalFilter();
+        when(senderMcp.hasPersonalFilter()).thenReturn(true);
+        mockedMineverseChatAPI.when(() -> MineverseChatAPI.getOnlineMineverseChatPlayer(target)).thenReturn(targetMcp);
+        mockedMineverseChatAPI.when(() -> MineverseChatAPI.getOnlineMineverseChatPlayer(spy)).thenReturn(spyMcp);
+        var console = Mockito.mock(org.bukkit.command.ConsoleCommandSender.class);
+        mockedBukkit.when(Bukkit::getConsoleSender).thenReturn(console);
+        var channel = Mockito.mock(mineverse.Aust1n46.chat.channel.ChatChannel.class);
+        when(channel.getName()).thenReturn("Local");
+        var event = Mockito.mock(mineverse.Aust1n46.chat.api.events.VentureChatEvent.class);
+        when(event.getMineverseChatPlayer()).thenReturn(senderMcp);
+        when(event.getChannel()).thenReturn(channel);
+        when(event.getRecipients()).thenReturn(new java.util.LinkedHashSet<>(Arrays.asList(sender, target, spy)));
+        when(event.getRecipientCount()).thenReturn(3);
+        when(event.getChat()).thenReturn("hello");
+        when(event.getFormat()).thenReturn("Sender: ");
+        when(event.getConsoleChat()).thenReturn("Sender: hello");
+        String original = "[\"\",{\"text\":\"\",\"extra\":[{\"text\":\"Sender: \"}]},{\"text\":\"hello\"}]";
+        when(event.getGlobalJSON()).thenReturn(original);
+        java.util.Map<Player, String> deliveries = new java.util.HashMap<>();
+        mockedFormat.when(() -> Format.formatModerationGUI(anyString(), any(Player.class), anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenAnswer(invocation -> { deliveries.put(invocation.getArgument(1), invocation.getArgument(0)); return invocation.getArgument(0); });
+        new ChatListener().handleVentureChatEvent(event);
+        assertEquals(original, deliveries.get(sender));
+        assertEquals(original, deliveries.get(spy));
+        org.junit.Assert.assertTrue(deliveries.get(target).contains("*****"));
+        org.junit.Assert.assertFalse(deliveries.get(target).contains("hello"));
+        assertEquals(3, deliveries.size());
+        verify(plugin.getChatFeatures()).censor("hello");
+        verify(console).sendMessage("Sender: hello");
+    }
 
 }
