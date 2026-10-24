@@ -1,5 +1,9 @@
 package mineverse.Aust1n46.chat.command.message;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import mineverse.Aust1n46.chat.settings.ChatFeatures;
 import mineverse.Aust1n46.chat.settings.PrivateMessages;
 import org.bukkit.command.Command;
@@ -33,15 +37,21 @@ public class Message extends Command {
 			return true;
 		}
 
-		MineverseChatPlayer player = MineverseChatAPI.getOnlineMineverseChatPlayer(args[0]);
-		if (player == null) {
+		List<MineverseChatPlayer> matches = MineverseChatAPI.matchOnlineMineverseChatPlayers(args[0], mcp.getPlayer());
+		if (matches.isEmpty()) {
 			mcp.getPlayer().sendMessage(LocalizedMessage.PLAYER_OFFLINE.toString().replace("{args}", args[0]));
 			return true;
 		}
-		if (!mcp.getPlayer().canSee(player.getPlayer())) {
-			mcp.getPlayer().sendMessage(LocalizedMessage.PLAYER_OFFLINE.toString().replace("{args}", args[0]));
+		if (matches.size() > 1) {
+			List<String> names = new ArrayList<>();
+			for (MineverseChatPlayer match : matches) {
+				names.add(match.getName());
+			}
+			Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
+			mcp.getPlayer().sendMessage(LocalizedMessage.PLAYER_NAME_AMBIGUOUS.toString().replace("{args}", args[0]).replace("{players}", String.join(", ", names)));
 			return true;
 		}
+		MineverseChatPlayer player = matches.get(0);
 		boolean senderBypassesToggle = mcp.getPlayer().hasPermission(MineverseChat.MESSAGETOGGLE_BYPASS_PERMISSION);
 		boolean ignored = player.getIgnores().contains(mcp.getUUID()) && !senderBypassesToggle;
 		if (!player.getMessageToggle() && !senderBypassesToggle) {
