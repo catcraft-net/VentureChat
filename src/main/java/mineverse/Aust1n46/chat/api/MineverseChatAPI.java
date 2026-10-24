@@ -302,13 +302,26 @@ public final class MineverseChatAPI {
 
     /**
      * Get a MineverseChatPlayer wrapper from a user name. Only checks current
-     * online players. Much more efficient!
+     * online players. Much more efficient! Falls back to a case-insensitive
+     * match, so "/msg steve" finds Steve.
      *
      * @param name {@link String}.
      * @return {@link MineverseChatPlayer}
      */
     public static MineverseChatPlayer getOnlineMineverseChatPlayer(String name) {
-        return getOnlineMineverseChatPlayer(namesMap.get(name));
+        if (name == null) {
+            return null;
+        }
+        MineverseChatPlayer exact = getOnlineMineverseChatPlayer(namesMap.get(name));
+        if (exact != null) {
+            return exact;
+        }
+        for (MineverseChatPlayer mcp : onlinePlayerMap.values()) {
+            if (name.equalsIgnoreCase(mcp.getName())) {
+                return mcp;
+            }
+        }
+        return null;
     }
 
 }
