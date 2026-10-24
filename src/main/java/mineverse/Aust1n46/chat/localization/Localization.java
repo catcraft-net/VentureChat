@@ -32,6 +32,12 @@ public class Localization {
 			plugin.saveResource("Messages.yml", true);
 			localization = YamlConfiguration.loadConfiguration(localizationFile);
 		}
+
+		// Messages added without a Version bump fall back to the bundled text.
+		java.io.InputStream bundled = plugin.getResource("Messages.yml");
+		if(bundled != null) {
+			localization.setDefaults(YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(bundled, java.nio.charset.StandardCharsets.UTF_8)));
+		}
 	}
 	
 	public static FileConfiguration getLocalization() {		

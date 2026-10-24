@@ -324,4 +324,60 @@ public final class MineverseChatAPI {
         return null;
     }
 
+    /**
+     * Find online players the viewer can see whose name matches what they typed.
+     * A full name (any case) wins; otherwise every visible player whose name
+     * starts with it is returned, so callers can refuse to guess when several
+     * match.
+     *
+     * @param name   {@link String} typed by the viewer.
+     * @param viewer {@link Player} looking for the target.
+     * @return matching players, empty if none.
+     */
+    public static List<MineverseChatPlayer> matchOnlineMineverseChatPlayers(String name, Player viewer) {
+        List<MineverseChatPlayer> matches = new ArrayList<>();
+        if (name == null || name.isEmpty()) {
+            return matches;
+        }
+        MineverseChatPlayer exact = getOnlineMineverseChatPlayer(name);
+        if (exact != null && exact.getPlayer() != null && viewer.canSee(exact.getPlayer())) {
+            matches.add(exact);
+            return matches;
+        }
+        String typed = plainName(name);
+        if (typed.isEmpty()) {
+            return matches;
+        }
+        for (MineverseChatPlayer mcp : onlinePlayerMap.values()) {
+            Player target = mcp.getPlayer();
+            if (target != null && viewer.canSee(target) && typed.equals(plainName(target.getDisplayName()))) {
+                matches.add(mcp);
+            }
+        }
+        if (!matches.isEmpty()) {
+            return matches;
+        }
+        for (MineverseChatPlayer mcp : onlinePlayerMap.values()) {
+            Player target = mcp.getPlayer();
+            if (target != null && viewer.canSee(target)
+                    && (plainName(mcp.getName()).startsWith(typed) || plainName(target.getDisplayName()).startsWith(typed))) {
+                matches.add(mcp);
+            }
+        }
+        return matches;
+    }
+
+    /**
+     * Lower-cased name without colour codes or leading symbols, so an
+     * EssentialsX nickname like "&b~Cheesette" compares as "cheesette" and a
+     * Bedrock name like "_Steve123" also matches "steve".
+     */
+    private static String plainName(String name) {
+        if (name == null) {
+            return "";
+        }
+        String plain = org.bukkit.ChatColor.stripColor(mineverse.Aust1n46.chat.utilities.Format.FormatStringAll(name));
+        return plain.replaceFirst("^[^\\p{L}\\p{N}]+", "").toLowerCase(java.util.Locale.ROOT);
+    }
+
 }
