@@ -77,6 +77,7 @@ public enum LocalizedMessage {
     NOTIFICATIONS_ON("NotificationsOn"),
     PLAYER_ALREADY_MUTED("PlayerAlreadyMuted"),
     PLAYER_NOT_MUTED("PlayerNotMuted"),
+    PLAYER_NAME_AMBIGUOUS("PlayerNameAmbiguous"),
     PLAYER_OFFLINE("PlayerOffline"),
     PLAYER_OFFLINE_NO_PERMISSIONS_CHECK("PlayerOfflineNoPermissionsCheck"),
     RANGED_SPY_OFF("RangedSpyOff"),
