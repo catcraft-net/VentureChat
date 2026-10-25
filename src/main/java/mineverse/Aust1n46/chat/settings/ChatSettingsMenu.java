@@ -151,7 +151,7 @@ public final class ChatSettingsMenu implements Listener {
     }
     @EventHandler(priority=EventPriority.HIGHEST)
     public void click(InventoryClickEvent event) {
-        if(!(event.getView().getTopInventory().getHolder() instanceof View view)) return;
+        if(!(event.getView().getTopInventory().getHolder(false) instanceof View view)) return;
         event.setCancelled(true);
         if(!(event.getWhoClicked() instanceof Player player) || !player.getUniqueId().equals(view.owner)) return;
         Action action=view.actions.get(event.getRawSlot());if(action==null)return;
@@ -184,6 +184,6 @@ public final class ChatSettingsMenu implements Listener {
     }
     @EventHandler(priority=EventPriority.HIGHEST)
     public void drag(InventoryDragEvent event) {
-        if(event.getView().getTopInventory().getHolder() instanceof View) event.setCancelled(true);
+        if(event.getView().getTopInventory().getHolder(false) instanceof View) event.setCancelled(true);
     }
 }
